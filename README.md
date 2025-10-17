@@ -1,4 +1,4 @@
-# OmniQuant v2.0 — Production Trading Software
+# OmniQuant v2.0 — Production Trading Software ( Unified Quantitative Research & Trading Framework )
 
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 [![Production Ready](https://img.shields.io/badge/production-ready-brightgreen.svg)](PRODUCTION_DEPLOYMENT.md)
