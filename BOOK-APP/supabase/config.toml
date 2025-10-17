@@ -1,0 +1,94 @@
+# Supabase Configuration for BookFlow
+# Generated with Supabase CLI
+
+project_id = "your-project-id"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "storage"]
+extra_search_path = ["public"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 15
+
+[db.pooler]
+enabled = false
+port = 54329
+pool_mode = "transaction"
+default_pool_size = 20
+max_client_conn = 100
+
+[realtime]
+enabled = true
+ip_version = "ipv4"
+
+[studio]
+enabled = true
+port = 54323
+api_url = "http://localhost"
+
+[inbucket]
+enabled = true
+port = 54324
+smtp_port = 54325
+pop3_port = 54326
+
+[storage]
+enabled = true
+file_size_limit = "209715200"  # 200MB max file size
+buckets = [
+  { name = "books", public = false },
+  { name = "thumbnails", public = true }
+]
+
+[storage.buckets.books]
+file_size_limit = "209715200"  # 200MB
+allowed_mime_types = ["application/pdf", "application/epub+zip"]
+
+[storage.buckets.thumbnails]
+file_size_limit = "5242880"  # 5MB
+allowed_mime_types = ["image/jpeg", "image/png", "image/webp"]
+
+[auth]
+enabled = true
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["http://localhost:19006", "exp://localhost:19000"]
+jwt_expiry = 3600
+enable_signup = true
+enable_anonymous_sign_ins = false
+
+[auth.email]
+enable_signup = true
+double_confirm_changes = true
+enable_confirmations = true
+secure_password_change = true
+
+[auth.external.google]
+enabled = true
+client_id = "your-google-client-id"
+secret = "your-google-client-secret"
+redirect_uri = "http://localhost:54321/auth/v1/callback"
+
+[auth.external.apple]
+enabled = true
+client_id = "your-apple-client-id"
+secret = "your-apple-client-secret"
+redirect_uri = "http://localhost:54321/auth/v1/callback"
+
+[edge_functions]
+enabled = true
+port = 54327
+
+# Edge function configuration
+[functions.process-upload]
+verify_jwt = true
+
+[functions.ocr-document]
+verify_jwt = true
+
+[functions.search-external]
+verify_jwt = true

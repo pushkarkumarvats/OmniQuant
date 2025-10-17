@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  omniquant:
+    build: .
+    container_name: omniquant_app
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./models:/app/models
+    environment:
+      - PYTHONUNBUFFERED=1
+    command: streamlit run src/dashboard/app.py --server.port=8501 --server.address=0.0.0.0
+  
+  postgres:
+    image: postgres:15
+    container_name: omniquant_db
+    environment:
+      - POSTGRES_DB=omniquant
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    container_name: omniquant_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+volumes:
+  postgres_data:
+  redis_data:

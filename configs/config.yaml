@@ -1,0 +1,274 @@
+# OmniQuant Configuration File
+
+# ==============================================================================
+# Data Configuration
+# ==============================================================================
+data:
+  raw_data_path: "data/raw"
+  processed_data_path: "data/processed"
+  cache_path: "data/cache"
+  
+  # Data sources
+  sources:
+    - type: "csv"
+      enabled: true
+    - type: "parquet"
+      enabled: true
+    - type: "database"
+      enabled: false
+      
+  # Sampling parameters
+  sampling:
+    tick_frequency: "1s"
+    bar_frequency: "1min"
+    
+# ==============================================================================
+# Feature Engineering
+# ==============================================================================
+features:
+  microstructure:
+    - "order_flow_imbalance"
+    - "bid_ask_spread"
+    - "volume_imbalance"
+    - "orderbook_slope"
+    - "trade_intensity"
+    
+  technical:
+    - "returns"
+    - "volatility"
+    - "momentum"
+    - "vwap_deviation"
+    - "volume_profile"
+    
+  windows:
+    short: [5, 10, 20]
+    medium: [50, 100, 200]
+    long: [500, 1000]
+    
+# ==============================================================================
+# Alpha Models
+# ==============================================================================
+models:
+  lstm:
+    enabled: true
+    hidden_size: 128
+    num_layers: 2
+    dropout: 0.2
+    sequence_length: 50
+    
+  xgboost:
+    enabled: true
+    max_depth: 6
+    learning_rate: 0.1
+    n_estimators: 100
+    
+  lightgbm:
+    enabled: true
+    num_leaves: 31
+    learning_rate: 0.05
+    n_estimators: 100
+    
+  transformer:
+    enabled: false
+    d_model: 128
+    nhead: 8
+    num_layers: 4
+    
+# ==============================================================================
+# Simulator Configuration
+# ==============================================================================
+simulator:
+  engine: "python"  # "python" or "cpp"
+  
+  # Market parameters
+  market:
+    tick_size: 0.01
+    lot_size: 100
+    latency_mean_ms: 0.5
+    latency_std_ms: 0.1
+    
+  # Order book depth
+  orderbook:
+    depth_levels: 10
+    
+  # Slippage model
+  slippage:
+    model: "sqrt"  # "linear", "sqrt", "power"
+    impact_coefficient: 0.1
+    
+# ==============================================================================
+# Strategy Configuration
+# ==============================================================================
+strategies:
+  market_maker:
+    enabled: true
+    spread_bps: 5
+    inventory_limit: 1000
+    risk_aversion: 0.5
+    
+    # RL configuration
+    rl:
+      algorithm: "PPO"
+      learning_rate: 0.0003
+      gamma: 0.99
+      
+  momentum:
+    enabled: true
+    lookback_period: 20
+    entry_threshold: 2.0
+    exit_threshold: 0.5
+    position_size: 100
+    
+  arbitrage:
+    enabled: true
+    threshold_bps: 2
+    max_position: 500
+    
+# ==============================================================================
+# Execution Algorithms
+# ==============================================================================
+execution:
+  algorithms:
+    twap:
+      enabled: true
+      num_slices: 10
+      
+    vwap:
+      enabled: true
+      volume_participation: 0.1
+      
+    pov:
+      enabled: true
+      participation_rate: 0.05
+      
+    is:
+      enabled: true
+      urgency: 0.5
+      
+    rl_execution:
+      enabled: true
+      algorithm: "DDPG"
+      
+# ==============================================================================
+# Portfolio Optimization
+# ==============================================================================
+portfolio:
+  # Optimization method
+  method: "risk_parity"  # "mean_variance", "risk_parity", "bayesian"
+  
+  # Constraints
+  constraints:
+    max_weight: 0.3
+    min_weight: 0.0
+    max_leverage: 1.0
+    
+  # Risk parameters
+  risk:
+    target_volatility: 0.15
+    max_drawdown: 0.2
+    var_confidence: 0.95
+    
+  # Rebalancing
+  rebalance:
+    frequency: "daily"
+    threshold: 0.05
+    
+# ==============================================================================
+# Risk Management
+# ==============================================================================
+risk:
+  # Position limits
+  limits:
+    max_position_size: 10000
+    max_portfolio_value: 1000000
+    max_concentration: 0.25
+    
+  # Stop loss
+  stop_loss:
+    enabled: true
+    type: "trailing"  # "fixed", "trailing"
+    threshold: 0.05
+    
+  # Regime detection
+  regime:
+    method: "hmm"  # "hmm", "clustering"
+    num_states: 3
+    features: ["volatility", "returns", "volume"]
+    
+# ==============================================================================
+# Monitoring & Logging
+# ==============================================================================
+monitoring:
+  # Metrics to track
+  metrics:
+    - "sharpe_ratio"
+    - "max_drawdown"
+    - "win_rate"
+    - "profit_factor"
+    - "turnover"
+    
+  # Logging
+  logging:
+    level: "INFO"  # "DEBUG", "INFO", "WARNING", "ERROR"
+    save_logs: true
+    log_path: "logs"
+    
+  # Alerts
+  alerts:
+    enabled: true
+    drawdown_threshold: 0.1
+    volatility_threshold: 0.3
+    
+# ==============================================================================
+# Dashboard Configuration
+# ==============================================================================
+dashboard:
+  port: 8501
+  theme: "dark"
+  update_frequency_ms: 1000
+  
+  # Plots to display
+  plots:
+    - "pnl_curve"
+    - "drawdown"
+    - "feature_importance"
+    - "orderbook_heatmap"
+    - "correlation_matrix"
+    
+# ==============================================================================
+# Database Configuration
+# ==============================================================================
+database:
+  type: "postgresql"  # "postgresql", "clickhouse", "duckdb"
+  
+  postgresql:
+    host: "localhost"
+    port: 5432
+    database: "omniquant"
+    user: "postgres"
+    password: "password"
+    
+  clickhouse:
+    host: "localhost"
+    port: 9000
+    database: "omniquant"
+    
+# ==============================================================================
+# Distributed Computing
+# ==============================================================================
+distributed:
+  enabled: false
+  framework: "ray"  # "ray", "dask"
+  
+  ray:
+    num_cpus: 8
+    num_gpus: 0
+    
+# ==============================================================================
+# Performance
+# ==============================================================================
+performance:
+  use_numba: true
+  use_jit: true
+  parallel_features: true
+  cache_features: true
