@@ -4,9 +4,12 @@
 # ============================================================================
 # Core Data Processing
 # ============================================================================
+# Core Dependencies
 numpy>=1.24.0
 pandas>=2.0.0
-polars>=0.19.0
+scipy>=1.10.0
+pywavelets>=1.4.1
+statsmodels>=0.14.0
 pyarrow>=13.0.0
 scipy>=1.11.0
 duckdb>=0.9.0
@@ -105,9 +108,22 @@ vectorbt>=0.25.0
 # ============================================================================
 # Utilities
 # ============================================================================
-tqdm>=4.66.0
-pyyaml>=6.0.1
+# Infrastructure
+loguru>=0.7.0
+pyyaml>=6.0
 python-dotenv>=1.0.0
+
+# API & Web Framework
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+python-multipart>=0.0.6
+websockets>=12.0
+
+# Real-Time Data Connectors (Optional)
+# alpaca-trade-api>=3.0.0  # Uncomment for Alpaca
+# polygon-api-client>=1.12.0  # Uncomment for Polygon
+# ib_insync>=0.9.86  # Uncomment for Interactive Brokers
+redis>=5.0.0  # For distributed event bus
 loguru>=0.7.2
 jsonschema>=4.19.0
 pydantic>=2.4.0
