@@ -301,10 +301,9 @@ class OrderBook:
         if order.side == Side.BID:
             if order.price not in self.bids:
                 self.bids[order.price] = PriceLevel(order.price)
-                # Insert in descending order
+                # Use bisect with negative for descending order
                 bisect.insort(self.bid_prices, order.price)
-                self.bid_prices.reverse()
-                self.bid_prices = sorted(self.bid_prices, reverse=True)
+                self.bid_prices.sort(reverse=True)  # Sort once after insertion
             
             self.bids[order.price].add_order(order)
         else:

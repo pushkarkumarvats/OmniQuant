@@ -95,43 +95,79 @@ class DataIngestion:
         return df
     
     def fetch_yahoo_finance(
-        self, 
-        tickers: Union[str, List[str]], 
-        start_date: Optional[str] = None,
-        end_date: Optional[str] = None,
-        interval: str = "1d"
+        self,
+        symbol: str,
+        start_date: str,
+        end_date: str,
+        interval: str = '1d',
+        max_retries: int = 3,
+        retry_delay: float = 1.0
     ) -> pd.DataFrame:
         """
-        Fetch market data from Yahoo Finance
+        Fetch data from Yahoo Finance with retry logic
         
         Args:
-            tickers: Single ticker or list of tickers
+            symbol: Trading symbol
             start_date: Start date (YYYY-MM-DD)
             end_date: End date (YYYY-MM-DD)
-            interval: Data interval ('1m', '5m', '1h', '1d', etc.)
+            interval: Data interval
+            max_retries: Maximum number of retry attempts
+            retry_delay: Delay between retries in seconds
             
         Returns:
             DataFrame with OHLCV data
+            
+        Raises:
+            ImportError: If yfinance is not installed
+            ValueError: If invalid dates or symbol
+            ConnectionError: If unable to fetch after retries
         """
-        if isinstance(tickers, str):
-            tickers = [tickers]
-            
-        if start_date is None:
-            start_date = (datetime.now() - timedelta(days=365)).strftime("%Y-%m-%d")
-        if end_date is None:
-            end_date = datetime.now().strftime("%Y-%m-%d")
-            
-        logger.info(f"Fetching data for {tickers} from {start_date} to {end_date}")
+        try:
+            import yfinance as yf
+        except ImportError as e:
+            logger.error("yfinance not installed. Install with: pip install yfinance")
+            raise ImportError("yfinance package required for Yahoo Finance data") from e
         
-        data_frames = []
-        for ticker in tickers:
+        # Validate inputs
+        if not symbol or not isinstance(symbol, str):
+            raise ValueError(f"Invalid symbol: {symbol}")
+        
+        import time
+        from datetime import datetime
+        
+        try:
+            datetime.strptime(start_date, '%Y-%m-%d')
+            datetime.strptime(end_date, '%Y-%m-%d')
+        except ValueError as e:
+            raise ValueError(f"Invalid date format. Use YYYY-MM-DD: {e}") from e
+        
+        # Retry logic
+        for attempt in range(max_retries):
             try:
-                df = yf.download(ticker, start=start_date, end=end_date, interval=interval, progress=False)
-                df['ticker'] = ticker
-                data_frames.append(df)
-                logger.info(f"Fetched {len(df)} rows for {ticker}")
+                ticker = yf.Ticker(symbol)
+                df = ticker.history(start=start_date, end=end_date, interval=interval)
+                
+                if df.empty:
+                    logger.warning(f"No data returned for {symbol}")
+                    return pd.DataFrame()
+                
+                df = df.reset_index()
+                df.columns = df.columns.str.lower()
+                
+                logger.info(f"Fetched {len(df)} records for {symbol}")
+                return df
+                
+            except ConnectionError as e:
+                if attempt < max_retries - 1:
+                    logger.warning(f"Connection error for {symbol}, retry {attempt + 1}/{max_retries}: {e}")
+                    time.sleep(retry_delay * (attempt + 1))  # Exponential backoff
+                else:
+                    logger.error(f"Failed to fetch {symbol} after {max_retries} attempts")
+                    raise ConnectionError(f"Unable to fetch data for {symbol} after {max_retries} retries") from e
+            
             except Exception as e:
-                logger.error(f"Error fetching {ticker}: {e}")
+                logger.error(f"Unexpected error fetching {symbol}: {type(e).__name__}: {e}")
+                raise
                 
         if data_frames:
             result = pd.concat(data_frames)

@@ -1,13 +1,8 @@
-# OmniQuant — Unified Quantitative Research & Trading Framework
-git init
+# OmniQuant — Quantitative Research & Trading Simulation Framework
 
-![Python](https://img.shields.io/badge/Python-3.9%2B-blue)
-![C++](https://img.shields.io/badge/C%2B%2B-17-orange)
-![License](https://img.shields.io/badge/License-MIT-green)
+**A comprehensive research and simulation platform** for algorithmic trading strategy development and backtesting. Designed as an educational and research tool that demonstrates professional quantitative trading workflows.
 
-A complete end-to-end algorithmic trading research platform that covers alpha discovery, market simulation, execution strategy, and portfolio optimization — implemented with a hybrid Python + C++ architecture.
-
-## 🧠 Core Concept
+⚠️ **Note**: This is a research/simulation framework, not production trading software. It lacks the robustness, security, real-time data feeds, and broker integrations required for live trading.
 
 OmniQuant emulates the complete quant research pipeline inside a trading firm:
 
@@ -121,6 +116,20 @@ OmniQuant/
 - **ML Models**: LSTM, Transformer, XGBoost, LightGBM
 - **Statistical Models**: ARIMA-GARCH, Kalman filters, cointegration
 - **Feature Selection**: Mutual information, SHAP, Granger causality
+
+### 🎯 Project Overview
+
+OmniQuant is an **educational research platform** that demonstrates quantitative trading workflows:
+
+- **Data Pipeline**: Synthetic data generation and multi-format ingestion (CSV, Parquet, APIs)
+- **Feature Engineering**: Technical indicators, microstructure features, and causal analysis
+- **Alpha Models**: Machine learning implementations (LSTM, XGBoost, LightGBM, statistical models)
+- **Market Simulator**: Event-driven backtesting with simulated order book matching
+- **Trading Strategies**: Example implementations (Market Making, Momentum, Pairs Trading)
+- **Portfolio Management**: Optimization algorithms (Mean-Variance, Risk Parity, HRP)
+- **Visualization**: Interactive Streamlit dashboard for analysis
+
+**Use Cases**: Learning quantitative finance, strategy research, backtesting experiments, portfolio projectsation (HMM)
 
 ### 4. Market Simulator
 - C++ event-driven order book engine

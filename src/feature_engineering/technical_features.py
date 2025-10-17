@@ -24,31 +24,36 @@ class TechnicalFeatures:
         """
         self.config = config or {}
         
-    def returns(
+    def calculate_returns(
         self,
         df: pd.DataFrame,
-        price_col: str = 'close',
-        periods: List[int] = [1, 5, 10, 20]
+        periods: List[int] = [1, 5, 10]
     ) -> pd.DataFrame:
         """
-        Calculate returns over multiple periods
+        Calculate returns over multiple periods (NO LOOKAHEAD BIAS)
         
         Args:
             df: DataFrame with price data
-            price_col: Column name for price
-            periods: List of periods for returns
+            periods: List of periods to calculate returns
             
         Returns:
             DataFrame with return columns
+        
+        Note:
+            Returns are calculated using past prices only.
+            return_t = (price_t - price_{t-period}) / price_{t-period}
         """
-        df_returns = pd.DataFrame(index=df.index)
+        result = df.copy()
         
         for period in periods:
-            df_returns[f'return_{period}'] = df[price_col].pct_change(periods=period)
-            df_returns[f'log_return_{period}'] = np.log(df[price_col] / df[price_col].shift(period))
+            # Use shift to ensure no lookahead
+            result[f'return_{period}'] = df[self.price_col].pct_change(period)
+        
+        for period in periods:
+            result[f'log_return_{period}'] = np.log(df[self.price_col] / df[self.price_col].shift(period))
         
         logger.debug(f"Calculated returns for periods: {periods}")
-        return df_returns
+        return result
     
     def momentum(
         self,
@@ -195,33 +200,31 @@ class TechnicalFeatures:
         
         return df_bb
     
-    def rsi(
+    def calculate_rsi(
         self,
         df: pd.DataFrame,
-        price_col: str = 'close',
-        window: int = 14
+        period: int = 14
     ) -> pd.Series:
         """
         Calculate Relative Strength Index (RSI)
         
         Args:
             df: DataFrame with price data
-            price_col: Column name for price
-            window: RSI period
+            period: RSI period
             
         Returns:
             Series with RSI values
         """
         # Calculate price changes
-        delta = df[price_col].diff()
+        delta = df[self.price_col].diff()
         
         # Separate gains and losses
         gains = delta.where(delta > 0, 0)
         losses = -delta.where(delta < 0, 0)
         
         # Calculate average gains and losses
-        avg_gains = gains.rolling(window=window).mean()
-        avg_losses = losses.rolling(window=window).mean()
+        avg_gains = gains.rolling(window=period).mean()
+        avg_losses = losses.rolling(window=period).mean()
         
         # Calculate RS and RSI
         rs = avg_gains / avg_losses
@@ -229,10 +232,9 @@ class TechnicalFeatures:
         
         return rsi
     
-    def macd(
+    def calculate_macd(
         self,
         df: pd.DataFrame,
-        price_col: str = 'close',
         fast: int = 12,
         slow: int = 26,
         signal: int = 9
@@ -242,7 +244,6 @@ class TechnicalFeatures:
         
         Args:
             df: DataFrame with price data
-            price_col: Column name for price
             fast: Fast EMA period
             slow: Slow EMA period
             signal: Signal line period
@@ -253,6 +254,8 @@ class TechnicalFeatures:
         df_macd = pd.DataFrame(index=df.index)
         
         # Calculate EMAs
+        ema_fast = df[self.price_col].ewm(span=fast, adjust=False).mean()
+        ema_slow = df[self.price_col].ewm(span=slow, adjust=False).mean()
         ema_fast = df[price_col].ewm(span=fast, adjust=False).mean()
         ema_slow = df[price_col].ewm(span=slow, adjust=False).mean()
         
