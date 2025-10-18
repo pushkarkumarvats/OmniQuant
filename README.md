@@ -343,7 +343,7 @@ curl https://api.yourdomain.com/health
 
 ## 📧 Contact
 
-For questions or collaboration: [Your Contact Info]
+For questions or collaboration: https://www.linkedin.com/in/pushkar-kumar-vats/
 
 ---
 
