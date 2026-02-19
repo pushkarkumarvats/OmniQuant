@@ -1,7 +1,4 @@
-"""
-Arbitrage Strategy
-Statistical arbitrage and pairs trading
-"""
+"""Statistical arbitrage and pairs trading strategy."""
 
 import numpy as np
 import pandas as pd
@@ -13,21 +10,9 @@ from .base_strategy import BaseStrategy
 
 
 class ArbitrageStrategy(BaseStrategy):
-    """
-    Statistical arbitrage / pairs trading strategy
-    """
+    """Pairs trading strategy using z-score mean reversion on the spread."""
     
     def __init__(self, config: Optional[Dict[str, Any]] = None):
-        """
-        Initialize arbitrage strategy
-        
-        Config parameters:
-            lookback_period: Period for spread calculation
-            entry_z_score: Z-score threshold for entry
-            exit_z_score: Z-score threshold for exit
-            position_size: Size of each leg
-            hedge_ratio: Fixed hedge ratio (optional)
-        """
         super().__init__("Arbitrage", config)
         
         # Strategy parameters
@@ -42,7 +27,6 @@ class ArbitrageStrategy(BaseStrategy):
         self.position = 0  # 1 = long spread, -1 = short spread, 0 = flat
         
     def initialize(self, simulator: Any):
-        """Initialize strategy"""
         self.is_initialized = True
         logger.info(f"Arbitrage Strategy initialized - Z-score entry: {self.entry_z_score}")
     
@@ -54,16 +38,7 @@ class ArbitrageStrategy(BaseStrategy):
         price1: float,
         price2: float
     ):
-        """
-        Process data for pair trading
-        
-        Args:
-            simulator: Event simulator
-            symbol1: First symbol
-            symbol2: Second symbol
-            price1: Price of first symbol
-            price2: Price of second symbol
-        """
+        """Update spread and place trades when z-score crosses thresholds."""
         # Calculate spread
         spread = price1 - self.hedge_ratio * price2
         self.spreads.append(spread)
@@ -111,16 +86,10 @@ class ArbitrageStrategy(BaseStrategy):
                 self.log_signal('CLOSE_SHORT_SPREAD', {'z_score': z_score})
     
     def on_data(self, simulator: Any, symbol: str, data: pd.Series):
-        """Single symbol - not applicable for pairs trading"""
-        pass
+        """No-op — pairs strategy uses on_data_pair instead."""
+        return
     
     def _calculate_spread_zscore(self) -> float:
-        """
-        Calculate z-score of current spread
-        
-        Returns:
-            Z-score
-        """
         spreads = np.array(self.spreads)
         
         current_spread = spreads[-1]

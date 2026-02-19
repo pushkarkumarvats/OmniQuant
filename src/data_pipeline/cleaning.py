@@ -11,30 +11,13 @@ from scipy import stats
 
 
 class DataCleaner:
-    """
-    Data cleaning and preprocessing utilities
-    """
+    """Utilities for cleaning and validating market data."""
     
     def __init__(self, config: Optional[Dict[str, Any]] = None):
-        """
-        Initialize DataCleaner
-        
-        Args:
-            config: Configuration dictionary
-        """
         self.config = config or {}
         
     def remove_duplicates(self, df: pd.DataFrame, subset: Optional[List[str]] = None) -> pd.DataFrame:
-        """
-        Remove duplicate rows
-        
-        Args:
-            df: Input DataFrame
-            subset: Columns to consider for duplicates
-            
-        Returns:
-            DataFrame with duplicates removed
-        """
+        """Drop duplicate rows, optionally scoped to a column subset."""
         initial_rows = len(df)
         df_clean = df.drop_duplicates(subset=subset)
         removed = initial_rows - len(df_clean)
@@ -50,17 +33,7 @@ class DataCleaner:
         method: str = 'forward_fill',
         columns: Optional[List[str]] = None
     ) -> pd.DataFrame:
-        """
-        Handle missing values using various strategies
-        
-        Args:
-            df: Input DataFrame
-            method: 'drop', 'forward_fill', 'backward_fill', 'interpolate', 'mean', 'median'
-            columns: Specific columns to process (None for all)
-            
-        Returns:
-            DataFrame with missing values handled
-        """
+        """Fill or drop NaNs using the specified strategy."""
         df_clean = df.copy()
         cols = columns if columns else df.columns
         
@@ -97,17 +70,7 @@ class DataCleaner:
         columns: List[str],
         threshold: float = 3.0
     ) -> pd.DataFrame:
-        """
-        Detect outliers using Z-score method
-        
-        Args:
-            df: Input DataFrame
-            columns: Columns to check for outliers
-            threshold: Z-score threshold
-            
-        Returns:
-            Boolean DataFrame indicating outliers
-        """
+        """Flag outliers whose absolute Z-score exceeds the threshold."""
         logger.info(f"Detecting outliers using Z-score (threshold={threshold})")
         
         outliers = pd.DataFrame(False, index=df.index, columns=df.columns)
@@ -130,17 +93,7 @@ class DataCleaner:
         columns: List[str],
         multiplier: float = 1.5
     ) -> pd.DataFrame:
-        """
-        Detect outliers using Interquartile Range (IQR) method
-        
-        Args:
-            df: Input DataFrame
-            columns: Columns to check for outliers
-            multiplier: IQR multiplier (typically 1.5 or 3.0)
-            
-        Returns:
-            Boolean DataFrame indicating outliers
-        """
+        """IQR-based outlier detection."""
         logger.info(f"Detecting outliers using IQR method (multiplier={multiplier})")
         
         outliers = pd.DataFrame(False, index=df.index, columns=df.columns)
@@ -170,18 +123,7 @@ class DataCleaner:
         method: str = 'iqr',
         **kwargs
     ) -> pd.DataFrame:
-        """
-        Cap outliers at threshold values (winsorization)
-        
-        Args:
-            df: Input DataFrame
-            columns: Columns to process
-            method: 'iqr' or 'quantile'
-            **kwargs: Additional arguments for outlier detection
-            
-        Returns:
-            DataFrame with capped outliers
-        """
+        """Winsorise outliers by clipping to IQR or quantile bounds."""
         df_clean = df.copy()
         
         if method == 'iqr':
@@ -212,15 +154,7 @@ class DataCleaner:
         return df_clean
     
     def validate_price_data(self, df: pd.DataFrame) -> Tuple[bool, List[str]]:
-        """
-        Validate price data for common issues
-        
-        Args:
-            df: DataFrame with price data
-            
-        Returns:
-            Tuple of (is_valid, list of issues)
-        """
+        """Check for negative prices, crossed quotes, bad OHLC, etc."""
         issues = []
         
         # Check for negative prices
@@ -278,17 +212,7 @@ class DataCleaner:
         freq: str,
         agg_dict: Optional[Dict[str, str]] = None
     ) -> pd.DataFrame:
-        """
-        Resample time series data to different frequency
-        
-        Args:
-            df: Input DataFrame with datetime index
-            freq: Target frequency ('1min', '5min', '1h', etc.)
-            agg_dict: Aggregation rules for each column
-            
-        Returns:
-            Resampled DataFrame
-        """
+        """Resample OHLCV data to a coarser frequency."""
         if not isinstance(df.index, pd.DatetimeIndex):
             raise ValueError("DataFrame must have DatetimeIndex for resampling")
         
@@ -317,17 +241,7 @@ class DataCleaner:
         columns: List[str],
         method: str = 'zscore'
     ) -> pd.DataFrame:
-        """
-        Normalize data using various methods
-        
-        Args:
-            df: Input DataFrame
-            columns: Columns to normalize
-            method: 'zscore', 'minmax', or 'robust'
-            
-        Returns:
-            DataFrame with normalized columns
-        """
+        """Apply z-score, min-max, or robust scaling to selected columns."""
         df_norm = df.copy()
         
         for col in columns:

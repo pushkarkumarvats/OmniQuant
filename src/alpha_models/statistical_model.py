@@ -16,17 +16,9 @@ warnings.filterwarnings('ignore')
 
 
 class StatisticalAlphaModel:
-    """
-    Statistical models for alpha prediction
-    """
+    """Classical statistical models: ARIMA-GARCH, Kalman filter, cointegration, regime switching."""
     
     def __init__(self, config: Optional[Dict[str, Any]] = None):
-        """
-        Initialize Statistical Alpha Model
-        
-        Args:
-            config: Model configuration
-        """
         self.config = config or {}
         self.models = {}
         
@@ -37,18 +29,7 @@ class StatisticalAlphaModel:
         garch_p: int = 1,
         garch_q: int = 1
     ) -> Dict[str, Any]:
-        """
-        Fit ARIMA-GARCH model for returns and volatility
-        
-        Args:
-            returns: Return series
-            arima_order: (p, d, q) for ARIMA
-            garch_p: GARCH p parameter
-            garch_q: GARCH q parameter
-            
-        Returns:
-            Fitted models and diagnostics
-        """
+        """Fit joint ARIMA (mean) + GARCH (volatility) model on a return series."""
         logger.info(f"Fitting ARIMA{arima_order}-GARCH({garch_p},{garch_q}) model")
         
         # Fit ARIMA for mean
@@ -86,15 +67,7 @@ class StatisticalAlphaModel:
         self,
         steps: int = 1
     ) -> Dict[str, np.ndarray]:
-        """
-        Forecast using ARIMA-GARCH
-        
-        Args:
-            steps: Number of steps to forecast
-            
-        Returns:
-            Dictionary with mean and volatility forecasts
-        """
+        """Multi-step ahead forecast of mean return and volatility."""
         if 'arima' not in self.models or 'garch' not in self.models:
             raise ValueError("ARIMA-GARCH models not fitted. Call fit_arima_garch() first.")
         
@@ -114,16 +87,7 @@ class StatisticalAlphaModel:
         observations: np.ndarray,
         n_states: int = 2
     ) -> KalmanFilter:
-        """
-        Fit Kalman Filter for state estimation
-        
-        Args:
-            observations: Observed time series
-            n_states: Number of hidden states
-            
-        Returns:
-            Fitted Kalman Filter
-        """
+        """Fit a Kalman filter via EM on the observation series."""
         logger.info(f"Fitting Kalman Filter with {n_states} states")
         
         # Initialize Kalman Filter
@@ -148,15 +112,6 @@ class StatisticalAlphaModel:
         self,
         observations: np.ndarray
     ) -> Tuple[np.ndarray, np.ndarray]:
-        """
-        Apply Kalman smoothing to observations
-        
-        Args:
-            observations: Observed time series
-            
-        Returns:
-            Tuple of (smoothed_state_means, smoothed_state_covariances)
-        """
         if 'kalman' not in self.models:
             raise ValueError("Kalman Filter not fitted. Call fit_kalman_filter() first.")
         
@@ -173,17 +128,7 @@ class StatisticalAlphaModel:
         series2: np.ndarray,
         significance: float = 0.05
     ) -> Dict[str, Any]:
-        """
-        Test for cointegration between two time series
-        
-        Args:
-            series1: First time series
-            series2: Second time series
-            significance: Significance level
-            
-        Returns:
-            Cointegration test results
-        """
+        """Engle-Granger cointegration test between two series."""
         logger.info("Testing for cointegration")
         
         # Cointegration test
@@ -210,16 +155,7 @@ class StatisticalAlphaModel:
         price_data: pd.DataFrame,
         significance: float = 0.05
     ) -> List[Dict[str, Any]]:
-        """
-        Find cointegrated pairs in a set of price series
-        
-        Args:
-            price_data: DataFrame with multiple price series
-            significance: Significance level
-            
-        Returns:
-            List of cointegrated pairs
-        """
+        """Brute-force pairwise cointegration scan across all columns."""
         logger.info(f"Searching for cointegrated pairs in {len(price_data.columns)} series")
         
         columns = price_data.columns
@@ -257,17 +193,7 @@ class StatisticalAlphaModel:
         series2: np.ndarray,
         hedge_ratio: Optional[float] = None
     ) -> Tuple[np.ndarray, float]:
-        """
-        Calculate spread for pair trading
-        
-        Args:
-            series1: First price series
-            series2: Second price series
-            hedge_ratio: Optional fixed hedge ratio
-            
-        Returns:
-            Tuple of (spread, hedge_ratio)
-        """
+        """Compute the spread; estimates hedge ratio by OLS if not provided."""
         if hedge_ratio is None:
             # Estimate hedge ratio using linear regression
             from sklearn.linear_model import LinearRegression
@@ -285,16 +211,7 @@ class StatisticalAlphaModel:
         series: np.ndarray,
         significance: float = 0.05
     ) -> Dict[str, Any]:
-        """
-        Test for stationarity using Augmented Dickey-Fuller test
-        
-        Args:
-            series: Time series data
-            significance: Significance level
-            
-        Returns:
-            Stationarity test results
-        """
+        """ADF stationarity test."""
         # ADF test
         adf_result = adfuller(series)
         
@@ -315,17 +232,7 @@ class StatisticalAlphaModel:
         entry_threshold: float = 2.0,
         exit_threshold: float = 0.5
     ) -> np.ndarray:
-        """
-        Generate mean reversion trading signals
-        
-        Args:
-            spread: Spread time series
-            entry_threshold: Z-score threshold for entry
-            exit_threshold: Z-score threshold for exit
-            
-        Returns:
-            Trading signals (-1, 0, 1)
-        """
+        """Z-score based mean-reversion signals: +1 (long), -1 (short), 0 (flat)."""
         # Calculate z-score
         mean = np.mean(spread)
         std = np.std(spread)
@@ -357,16 +264,7 @@ class StatisticalAlphaModel:
         returns: np.ndarray,
         n_regimes: int = 2
     ) -> Dict[str, Any]:
-        """
-        Fit Hidden Markov Model for regime detection
-        
-        Args:
-            returns: Return series
-            n_regimes: Number of regimes
-            
-        Returns:
-            Regime model and states
-        """
+        """Fit a Gaussian HMM for regime detection."""
         from hmmlearn import hmm
         
         logger.info(f"Fitting regime switching model with {n_regimes} regimes")

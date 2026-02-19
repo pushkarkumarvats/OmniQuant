@@ -11,44 +11,28 @@ from scipy import stats
 
 
 class TechnicalFeatures:
-    """
-    Generate technical analysis features
-    """
+    """Technical analysis feature generation."""
     
     def __init__(self, config: Optional[Dict[str, Any]] = None):
-        """
-        Initialize TechnicalFeatures
-        
-        Args:
-            config: Configuration dictionary
-        """
         self.config = config or {}
         
-    def returns(
+    def calculate_returns(
         self,
         df: pd.DataFrame,
-        price_col: str = 'close',
-        periods: List[int] = [1, 5, 10, 20]
+        periods: List[int] = [1, 5, 10]
     ) -> pd.DataFrame:
-        """
-        Calculate returns over multiple periods
-        
-        Args:
-            df: DataFrame with price data
-            price_col: Column name for price
-            periods: List of periods for returns
-            
-        Returns:
-            DataFrame with return columns
-        """
-        df_returns = pd.DataFrame(index=df.index)
+        """Multi-period returns and log-returns. Uses only past prices (no lookahead)."""
+        result = df.copy()
         
         for period in periods:
-            df_returns[f'return_{period}'] = df[price_col].pct_change(periods=period)
-            df_returns[f'log_return_{period}'] = np.log(df[price_col] / df[price_col].shift(period))
+            # Use shift to ensure no lookahead
+            result[f'return_{period}'] = df[self.price_col].pct_change(period)
+        
+        for period in periods:
+            result[f'log_return_{period}'] = np.log(df[self.price_col] / df[self.price_col].shift(period))
         
         logger.debug(f"Calculated returns for periods: {periods}")
-        return df_returns
+        return result
     
     def momentum(
         self,
@@ -56,17 +40,7 @@ class TechnicalFeatures:
         price_col: str = 'close',
         windows: List[int] = [10, 20, 50, 100]
     ) -> pd.DataFrame:
-        """
-        Calculate momentum indicators
-        
-        Args:
-            df: DataFrame with price data
-            price_col: Column name for price
-            windows: List of lookback windows
-            
-        Returns:
-            DataFrame with momentum features
-        """
+        """Simple momentum and rate-of-change across multiple lookback windows."""
         df_momentum = pd.DataFrame(index=df.index)
         
         for window in windows:
@@ -87,17 +61,7 @@ class TechnicalFeatures:
         price_col: str = 'close',
         windows: List[int] = [5, 10, 20, 50, 200]
     ) -> pd.DataFrame:
-        """
-        Calculate moving averages and crossovers
-        
-        Args:
-            df: DataFrame with price data
-            price_col: Column name for price
-            windows: List of MA windows
-            
-        Returns:
-            DataFrame with MA features
-        """
+        """SMA, EMA, distance-from-MA, and crossover signals."""
         df_ma = pd.DataFrame(index=df.index)
         
         for window in windows:
@@ -123,17 +87,7 @@ class TechnicalFeatures:
         price_col: str = 'close',
         windows: List[int] = [10, 20, 50]
     ) -> pd.DataFrame:
-        """
-        Calculate volatility measures
-        
-        Args:
-            df: DataFrame with price data
-            price_col: Column name for price
-            windows: List of volatility windows
-            
-        Returns:
-            DataFrame with volatility features
-        """
+        """Historical and Parkinson volatility across rolling windows."""
         df_vol = pd.DataFrame(index=df.index)
         
         # Calculate returns for volatility
@@ -163,18 +117,7 @@ class TechnicalFeatures:
         window: int = 20,
         num_std: float = 2.0
     ) -> pd.DataFrame:
-        """
-        Calculate Bollinger Bands
-        
-        Args:
-            df: DataFrame with price data
-            price_col: Column name for price
-            window: Rolling window
-            num_std: Number of standard deviations
-            
-        Returns:
-            DataFrame with Bollinger Band features
-        """
+        """Bollinger Bands with bandwidth and %B."""
         df_bb = pd.DataFrame(index=df.index)
         
         # Middle band (SMA)
@@ -195,33 +138,21 @@ class TechnicalFeatures:
         
         return df_bb
     
-    def rsi(
+    def calculate_rsi(
         self,
         df: pd.DataFrame,
-        price_col: str = 'close',
-        window: int = 14
+        period: int = 14
     ) -> pd.Series:
-        """
-        Calculate Relative Strength Index (RSI)
-        
-        Args:
-            df: DataFrame with price data
-            price_col: Column name for price
-            window: RSI period
-            
-        Returns:
-            Series with RSI values
-        """
         # Calculate price changes
-        delta = df[price_col].diff()
+        delta = df[self.price_col].diff()
         
         # Separate gains and losses
         gains = delta.where(delta > 0, 0)
         losses = -delta.where(delta < 0, 0)
         
         # Calculate average gains and losses
-        avg_gains = gains.rolling(window=window).mean()
-        avg_losses = losses.rolling(window=window).mean()
+        avg_gains = gains.rolling(window=period).mean()
+        avg_losses = losses.rolling(window=period).mean()
         
         # Calculate RS and RSI
         rs = avg_gains / avg_losses
@@ -229,30 +160,18 @@ class TechnicalFeatures:
         
         return rsi
     
-    def macd(
+    def calculate_macd(
         self,
         df: pd.DataFrame,
-        price_col: str = 'close',
         fast: int = 12,
         slow: int = 26,
         signal: int = 9
     ) -> pd.DataFrame:
-        """
-        Calculate MACD (Moving Average Convergence Divergence)
-        
-        Args:
-            df: DataFrame with price data
-            price_col: Column name for price
-            fast: Fast EMA period
-            slow: Slow EMA period
-            signal: Signal line period
-            
-        Returns:
-            DataFrame with MACD features
-        """
         df_macd = pd.DataFrame(index=df.index)
         
         # Calculate EMAs
+        ema_fast = df[self.price_col].ewm(span=fast, adjust=False).mean()
+        ema_slow = df[self.price_col].ewm(span=slow, adjust=False).mean()
         ema_fast = df[price_col].ewm(span=fast, adjust=False).mean()
         ema_slow = df[price_col].ewm(span=slow, adjust=False).mean()
         
@@ -272,16 +191,6 @@ class TechnicalFeatures:
         df: pd.DataFrame,
         window: int = 14
     ) -> pd.Series:
-        """
-        Calculate Average True Range (ATR)
-        
-        Args:
-            df: DataFrame with high, low, close
-            window: ATR period
-            
-        Returns:
-            Series with ATR values
-        """
         if not all(col in df.columns for col in ['high', 'low', 'close']):
             raise ValueError("DataFrame must have 'high', 'low', 'close' columns")
         
@@ -304,18 +213,7 @@ class TechnicalFeatures:
         volume_col: str = 'volume',
         window: Optional[int] = None
     ) -> pd.Series:
-        """
-        Calculate Volume Weighted Average Price (VWAP)
-        
-        Args:
-            df: DataFrame with price and volume
-            price_col: Price column
-            volume_col: Volume column
-            window: Rolling window (None for cumulative)
-            
-        Returns:
-            Series with VWAP values
-        """
+        """VWAP, cumulative if window is None, otherwise rolling."""
         typical_price = df[price_col]
         if 'high' in df.columns and 'low' in df.columns:
             typical_price = (df['high'] + df['low'] + df['close']) / 3
@@ -338,18 +236,6 @@ class TechnicalFeatures:
         volume_col: str = 'volume',
         window: int = 20
     ) -> pd.Series:
-        """
-        Calculate deviation from VWAP
-        
-        Args:
-            df: DataFrame with price and volume
-            price_col: Price column
-            volume_col: Volume column
-            window: VWAP window
-            
-        Returns:
-            Series with VWAP deviation
-        """
         vwap_values = self.vwap(df, price_col, volume_col, window)
         deviation = (df[price_col] - vwap_values) / vwap_values
         
@@ -361,17 +247,7 @@ class TechnicalFeatures:
         volume_col: str = 'volume',
         windows: List[int] = [10, 20, 50]
     ) -> pd.DataFrame:
-        """
-        Calculate volume profile features
-        
-        Args:
-            df: DataFrame with volume data
-            volume_col: Volume column
-            windows: List of windows
-            
-        Returns:
-            DataFrame with volume features
-        """
+        """Rolling volume averages, ratios, and standard deviations."""
         df_vol_profile = pd.DataFrame(index=df.index)
         
         for window in windows:
@@ -392,17 +268,7 @@ class TechnicalFeatures:
         price_col: str = 'close',
         feature_config: Optional[Dict[str, Any]] = None
     ) -> pd.DataFrame:
-        """
-        Generate all technical features
-        
-        Args:
-            df: Input DataFrame
-            price_col: Price column name
-            feature_config: Feature configuration
-            
-        Returns:
-            DataFrame with all technical features
-        """
+        """Run all technical feature generators and merge into a single DataFrame."""
         logger.info("Generating all technical features")
         
         df_features = df.copy()

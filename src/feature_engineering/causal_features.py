@@ -12,17 +12,9 @@ import networkx as nx
 
 
 class CausalFeatures:
-    """
-    Generate causal features and analyze feature relationships
-    """
+    """Causal inference and feature interaction analysis."""
     
     def __init__(self, config: Optional[Dict[str, Any]] = None):
-        """
-        Initialize CausalFeatures
-        
-        Args:
-            config: Configuration dictionary
-        """
         self.config = config or {}
         self.causal_graph = None
         
@@ -34,19 +26,7 @@ class CausalFeatures:
         max_lag: int = 5,
         significance: float = 0.05
     ) -> Dict[str, Dict[str, Any]]:
-        """
-        Test for Granger causality between features and target
-        
-        Args:
-            df: DataFrame with time series data
-            target_col: Target variable
-            feature_cols: List of feature columns to test
-            max_lag: Maximum lag to test
-            significance: Significance level
-            
-        Returns:
-            Dictionary with causality test results
-        """
+        """Test Granger causality of each feature on the target, returning p-values and optimal lags."""
         from statsmodels.tsa.stattools import grangercausalitytests
         
         results = {}
@@ -97,18 +77,7 @@ class CausalFeatures:
         feature_cols: List[str],
         n_neighbors: int = 3
     ) -> pd.Series:
-        """
-        Calculate mutual information between features and target
-        
-        Args:
-            df: DataFrame with features
-            target_col: Target variable
-            feature_cols: Feature columns
-            n_neighbors: Number of neighbors for estimation
-            
-        Returns:
-            Series with MI scores
-        """
+        """MI scores between features and target via sklearn's KNN estimator."""
         from sklearn.feature_selection import mutual_info_regression
         
         # Prepare data
@@ -130,18 +99,6 @@ class CausalFeatures:
         feature2: str,
         target: str
     ) -> float:
-        """
-        Measure interaction strength between two features
-        
-        Args:
-            df: DataFrame with features
-            feature1: First feature
-            feature2: Second feature
-            target: Target variable
-            
-        Returns:
-            Interaction strength score
-        """
         # Create interaction term
         interaction = df[feature1] * df[feature2]
         
@@ -163,18 +120,7 @@ class CausalFeatures:
         method: str = 'correlation',
         threshold: float = 0.5
     ) -> nx.Graph:
-        """
-        Build a graph of feature relationships
-        
-        Args:
-            df: DataFrame with features
-            features: List of features to include
-            method: 'correlation' or 'mutual_info'
-            threshold: Threshold for edge creation
-            
-        Returns:
-            NetworkX graph
-        """
+        """Build a NetworkX graph with edges between features exceeding the similarity threshold."""
         G = nx.Graph()
         
         # Add nodes
@@ -205,19 +151,7 @@ class CausalFeatures:
         features: List[str],
         threshold: float = 0.3
     ) -> List[str]:
-        """
-        Identify potential confounders in causal relationship
-        
-        Args:
-            df: DataFrame with features
-            treatment: Treatment variable
-            outcome: Outcome variable
-            features: Candidate confounders
-            threshold: Correlation threshold
-            
-        Returns:
-            List of potential confounders
-        """
+        """Find features that correlate with both treatment and outcome above threshold."""
         confounders = []
         
         for feature in features:
@@ -241,19 +175,7 @@ class CausalFeatures:
         lag: int = 1,
         bins: int = 10
     ) -> float:
-        """
-        Calculate transfer entropy from X to Y
-        Measures information flow
-        
-        Args:
-            x: Source time series
-            y: Target time series
-            lag: Time lag
-            bins: Number of bins for discretization
-            
-        Returns:
-            Transfer entropy value
-        """
+        """Transfer entropy TE(X->Y) via binned plug-in estimator."""
         # Discretize
         x_binned = pd.cut(x, bins=bins, labels=False, duplicates='drop')
         y_binned = pd.cut(y, bins=bins, labels=False, duplicates='drop')
@@ -262,17 +184,36 @@ class CausalFeatures:
         y_past = y_binned[:-lag]
         y_future = y_binned[lag:]
         x_past = x_binned[:-lag]
-        
-        # Calculate conditional entropies
-        # TE(X->Y) = H(Y_future | Y_past) - H(Y_future | Y_past, X_past)
-        
-        # This is a simplified calculation
-        # Full implementation would use proper entropy estimation
-        
-        # For now, return correlation as a proxy
-        te = abs(np.corrcoef(x_past[~np.isnan(x_past)], y_future[~np.isnan(y_future)])[0, 1] if len(x_past) > 0 else 0)
-        
-        return te
+
+        # Align lengths and drop NaNs
+        mask = ~(np.isnan(y_past) | np.isnan(y_future) | np.isnan(x_past))
+        y_past = y_past[mask].astype(int)
+        y_future = y_future[mask].astype(int)
+        x_past = x_past[mask].astype(int)
+
+        n = len(y_past)
+        if n < 10:
+            return 0.0
+
+        # Build joint and marginal count tables, then compute
+        # TE(X→Y) = H(Y_future | Y_past) - H(Y_future | Y_past, X_past)
+        # via KSG-style plug-in estimator with add-one smoothing.
+        from collections import Counter
+
+        joint_ypast_xpast_yfut = Counter(zip(y_past, x_past, y_future))
+        joint_ypast_xpast       = Counter(zip(y_past, x_past))
+        joint_ypast_yfut        = Counter(zip(y_past, y_future))
+        marginal_ypast          = Counter(y_past)
+
+        te = 0.0
+        for (yp, xp, yf), count in joint_ypast_xpast_yfut.items():
+            p_ypxpyf = count / n
+            p_yf_given_ypxp = count / joint_ypast_xpast[(yp, xp)]
+            p_yf_given_yp   = joint_ypast_yfut[(yp, yf)] / marginal_ypast[yp]
+            if p_yf_given_ypxp > 0 and p_yf_given_yp > 0:
+                te += p_ypxpyf * np.log2(p_yf_given_ypxp / p_yf_given_yp)
+
+        return max(te, 0.0)
     
     def lag_feature_importance(
         self,
@@ -281,18 +222,7 @@ class CausalFeatures:
         feature_cols: List[str],
         max_lag: int = 10
     ) -> pd.DataFrame:
-        """
-        Analyze importance of features at different lags
-        
-        Args:
-            df: DataFrame with features
-            target_col: Target variable
-            feature_cols: Feature columns
-            max_lag: Maximum lag to test
-            
-        Returns:
-            DataFrame with lag importance
-        """
+        """Correlation of each feature at each lag with the target."""
         results = []
         
         for feature in feature_cols:
@@ -327,18 +257,6 @@ class CausalFeatures:
         lags: List[int],
         target_col: Optional[str] = None
     ) -> pd.DataFrame:
-        """
-        Create lagged versions of features
-        
-        Args:
-            df: DataFrame with features
-            features: Features to lag
-            lags: List of lag values
-            target_col: Optional target for intelligent lag selection
-            
-        Returns:
-            DataFrame with lagged features
-        """
         df_lagged = df.copy()
         
         for feature in features:
@@ -358,17 +276,7 @@ class CausalFeatures:
         feature_pairs: List[Tuple[str, str]],
         operations: List[str] = ['multiply', 'add', 'divide', 'subtract']
     ) -> pd.DataFrame:
-        """
-        Create interaction features between feature pairs
-        
-        Args:
-            df: DataFrame with features
-            feature_pairs: List of (feature1, feature2) tuples
-            operations: List of operations to apply
-            
-        Returns:
-            DataFrame with interaction features
-        """
+        """Generate pairwise feature combinations (multiply, add, subtract, divide)."""
         df_interactions = df.copy()
         
         for feat1, feat2 in feature_pairs:
@@ -396,17 +304,6 @@ class CausalFeatures:
         features: List[str],
         degree: int = 2
     ) -> pd.DataFrame:
-        """
-        Create polynomial features
-        
-        Args:
-            df: DataFrame with features
-            features: Features to transform
-            degree: Polynomial degree
-            
-        Returns:
-            DataFrame with polynomial features
-        """
         from sklearn.preprocessing import PolynomialFeatures
         
         # Extract feature data

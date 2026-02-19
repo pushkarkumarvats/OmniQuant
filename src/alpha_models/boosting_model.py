@@ -15,23 +15,13 @@ import joblib
 
 
 class BoostingAlphaModel:
-    """
-    Gradient boosting model for alpha prediction
-    Supports XGBoost, LightGBM, and CatBoost
-    """
+    """Gradient boosting model for alpha prediction (XGBoost, LightGBM, CatBoost)."""
     
     def __init__(
         self,
         model_type: str = 'xgboost',
         config: Optional[Dict[str, Any]] = None
     ):
-        """
-        Initialize Boosting Alpha Model
-        
-        Args:
-            model_type: 'xgboost', 'lightgbm', or 'catboost'
-            config: Model configuration
-        """
         self.model_type = model_type.lower()
         self.config = config or {}
         self.model = None
@@ -41,8 +31,6 @@ class BoostingAlphaModel:
         self._initialize_model()
     
     def _initialize_model(self):
-        """Initialize the boosting model based on type"""
-        
         if self.model_type == 'xgboost':
             self.model = xgb.XGBRegressor(
                 n_estimators=self.config.get('n_estimators', 100),
@@ -95,19 +83,7 @@ class BoostingAlphaModel:
         y_val: Optional[np.ndarray] = None,
         feature_names: Optional[List[str]] = None
     ) -> Dict[str, Any]:
-        """
-        Train the boosting model
-        
-        Args:
-            X_train: Training features
-            y_train: Training targets
-            X_val: Validation features
-            y_val: Validation targets
-            feature_names: Names of features
-            
-        Returns:
-            Training metrics
-        """
+        """Train the model and return metrics dict with R² scores."""
         logger.info(f"Training {self.model_type} model with {X_train.shape[1]} features")
         
         # Early stopping rounds
@@ -174,15 +150,6 @@ class BoostingAlphaModel:
         return metrics
     
     def predict(self, X: np.ndarray) -> np.ndarray:
-        """
-        Make predictions
-        
-        Args:
-            X: Input features
-            
-        Returns:
-            Predictions
-        """
         if self.model is None:
             raise ValueError("Model not trained. Call train() first.")
         
@@ -193,15 +160,7 @@ class BoostingAlphaModel:
         self,
         top_n: Optional[int] = None
     ) -> pd.Series:
-        """
-        Get feature importance
-        
-        Args:
-            top_n: Return top N features (None for all)
-            
-        Returns:
-            Series with feature importance
-        """
+        """Return feature importance as a sorted Series, optionally limited to top_n."""
         if self.feature_importance is None:
             raise ValueError("Model not trained. Call train() first.")
         
@@ -215,17 +174,7 @@ class BoostingAlphaModel:
         y: np.ndarray,
         cv: int = 5
     ) -> Dict[str, float]:
-        """
-        Perform cross-validation
-        
-        Args:
-            X: Features
-            y: Targets
-            cv: Number of folds
-            
-        Returns:
-            Cross-validation scores
-        """
+        """Run k-fold cross-validation and return mean/std R² scores."""
         logger.info(f"Performing {cv}-fold cross-validation")
         
         scores = cross_val_score(
@@ -252,18 +201,7 @@ class BoostingAlphaModel:
         param_grid: Optional[Dict[str, List]] = None,
         n_trials: int = 50
     ) -> Dict[str, Any]:
-        """
-        Tune hyperparameters using Optuna
-        
-        Args:
-            X_train: Training features
-            y_train: Training targets
-            param_grid: Parameter search space
-            n_trials: Number of optimization trials
-            
-        Returns:
-            Best parameters and score
-        """
+        """Optuna-based hyperparameter search. Retrains model with best params found."""
         import optuna
         from sklearn.model_selection import cross_val_score
         
@@ -328,12 +266,6 @@ class BoostingAlphaModel:
         }
     
     def save_model(self, filepath: str):
-        """
-        Save model to file
-        
-        Args:
-            filepath: Path to save model
-        """
         if self.model is None:
             raise ValueError("No model to save")
         
@@ -347,12 +279,6 @@ class BoostingAlphaModel:
         logger.info(f"Model saved to {filepath}")
     
     def load_model(self, filepath: str):
-        """
-        Load model from file
-        
-        Args:
-            filepath: Path to model file
-        """
         data = joblib.load(filepath)
         
         self.model = data['model']

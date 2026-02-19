@@ -13,22 +13,13 @@ import joblib
 
 
 class EnsembleAlphaModel:
-    """
-    Ensemble model that combines multiple alpha models
-    """
+    """Combines multiple alpha models via stacking, blending, or Bayesian averaging."""
     
     def __init__(
         self,
         method: str = 'stacking',
         config: Optional[Dict[str, Any]] = None
     ):
-        """
-        Initialize Ensemble Alpha Model
-        
-        Args:
-            method: 'stacking', 'blending', 'weighted_average', or 'bayesian'
-            config: Model configuration
-        """
         self.method = method.lower()
         self.config = config or {}
         self.base_models = []
@@ -36,13 +27,7 @@ class EnsembleAlphaModel:
         self.weights = None
         
     def add_model(self, name: str, model: Any):
-        """
-        Add a base model to the ensemble
-        
-        Args:
-            name: Model name
-            model: Model instance (must have fit and predict methods)
-        """
+        """Register a base model (must implement fit/predict)."""
         self.base_models.append({
             'name': name,
             'model': model
@@ -57,19 +42,7 @@ class EnsembleAlphaModel:
         y_val: Optional[np.ndarray] = None,
         meta_model: Optional[Any] = None
     ) -> Dict[str, Any]:
-        """
-        Train ensemble using stacking
-        
-        Args:
-            X_train: Training features
-            y_train: Training targets
-            X_val: Validation features
-            y_val: Validation targets
-            meta_model: Meta-learner (default: Ridge)
-            
-        Returns:
-            Training metrics
-        """
+        """Fit a StackingRegressor over the base models with optional meta-learner."""
         logger.info("Training stacking ensemble")
         
         if not self.base_models:
@@ -113,18 +86,8 @@ class EnsembleAlphaModel:
         y_val: Optional[np.ndarray] = None
     ) -> Dict[str, Any]:
         """
-        Train ensemble using blending
-        
-        Args:
-            X_train: Training features for base models
-            y_train: Training targets
-            X_blend: Blending set features
-            y_blend: Blending set targets
-            X_val: Validation features
-            y_val: Validation targets
-            
-        Returns:
-            Training metrics
+        Two-stage blending: trains base models on the training split,
+        then fits a Ridge meta-model on their blending-set predictions.
         """
         logger.info("Training blending ensemble")
         
@@ -176,19 +139,7 @@ class EnsembleAlphaModel:
         y_val: np.ndarray,
         optimization_method: str = 'inverse_mse'
     ) -> Dict[str, Any]:
-        """
-        Train weighted average ensemble
-        
-        Args:
-            X_train: Training features
-            y_train: Training targets
-            X_val: Validation features
-            y_val: Validation targets
-            optimization_method: 'inverse_mse', 'inverse_variance', or 'optimize'
-            
-        Returns:
-            Training metrics and weights
-        """
+        """Determine per-model weights via inverse MSE, inverse variance, or scipy optimization."""
         logger.info(f"Training weighted average ensemble ({optimization_method})")
         
         if not self.base_models:
@@ -264,18 +215,7 @@ class EnsembleAlphaModel:
         X_val: np.ndarray,
         y_val: np.ndarray
     ) -> Dict[str, Any]:
-        """
-        Train Bayesian Model Averaging ensemble
-        
-        Args:
-            X_train: Training features
-            y_train: Training targets
-            X_val: Validation features
-            y_val: Validation targets
-            
-        Returns:
-            Training metrics
-        """
+        """BMA: weights models by their Gaussian log-likelihood on the validation set."""
         logger.info("Training Bayesian Model Averaging ensemble")
         
         if not self.base_models:
@@ -320,12 +260,7 @@ class EnsembleAlphaModel:
         }
     
     def train(self, *args, **kwargs) -> Dict[str, Any]:
-        """
-        Train ensemble using the specified method
-        
-        Returns:
-            Training metrics
-        """
+        """Dispatch to the method-specific training routine."""
         if self.method == 'stacking':
             return self.train_stacking(*args, **kwargs)
         elif self.method == 'blending':
@@ -338,15 +273,6 @@ class EnsembleAlphaModel:
             raise ValueError(f"Unknown ensemble method: {self.method}")
     
     def predict(self, X: np.ndarray) -> np.ndarray:
-        """
-        Make predictions using the ensemble
-        
-        Args:
-            X: Input features
-            
-        Returns:
-            Predictions
-        """
         if self.method == 'stacking':
             if self.meta_model is None:
                 raise ValueError("Model not trained. Call train() first.")
@@ -373,15 +299,7 @@ class EnsembleAlphaModel:
                 return np.dot(self.weights, predictions)
     
     def get_model_contributions(self, X: np.ndarray) -> pd.DataFrame:
-        """
-        Get individual model contributions to ensemble prediction
-        
-        Args:
-            X: Input features
-            
-        Returns:
-            DataFrame with model predictions and weights
-        """
+        """Per-model predictions and weights alongside the ensemble output."""
         if not self.base_models:
             raise ValueError("No models in ensemble")
         
@@ -400,12 +318,6 @@ class EnsembleAlphaModel:
         return df
     
     def save_model(self, filepath: str):
-        """
-        Save ensemble model to file
-        
-        Args:
-            filepath: Path to save model
-        """
         joblib.dump({
             'method': self.method,
             'base_models': self.base_models,
@@ -417,12 +329,6 @@ class EnsembleAlphaModel:
         logger.info(f"Ensemble model saved to {filepath}")
     
     def load_model(self, filepath: str):
-        """
-        Load ensemble model from file
-        
-        Args:
-            filepath: Path to model file
-        """
         data = joblib.load(filepath)
         
         self.method = data['method']

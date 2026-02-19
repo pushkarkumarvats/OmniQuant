@@ -108,7 +108,7 @@ strategies:
     
     # RL configuration
     rl:
-      algorithm: "PPO"
+      algorithm: "DQN"     # Only DQN is currently implemented
       learning_rate: 0.0003
       gamma: 0.99
       
@@ -145,9 +145,10 @@ execution:
       enabled: true
       urgency: 0.5
       
+    # NOTE: RL execution is a research stub; no trained agent is shipped.
     rl_execution:
-      enabled: true
-      algorithm: "DDPG"
+      enabled: false
+      algorithm: "DQN"
       
 # ==============================================================================
 # Portfolio Optimization
@@ -268,7 +269,5 @@ distributed:
 # Performance
 # ==============================================================================
 performance:
-  use_numba: true
-  use_jit: true
   parallel_features: true
   cache_features: true

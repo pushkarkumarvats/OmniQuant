@@ -10,17 +10,9 @@ from loguru import logger
 
 
 class DataAligner:
-    """
-    Align and synchronize data from multiple sources
-    """
+    """Aligns and synchronises multi-source time-series data."""
     
     def __init__(self, config: Optional[Dict[str, Any]] = None):
-        """
-        Initialize DataAligner
-        
-        Args:
-            config: Configuration dictionary
-        """
         self.config = config or {}
         
     def align_by_time(
@@ -29,17 +21,7 @@ class DataAligner:
         timestamp_col: str = 'timestamp',
         method: str = 'outer'
     ) -> pd.DataFrame:
-        """
-        Align multiple DataFrames by timestamp
-        
-        Args:
-            dfs: List of DataFrames to align
-            timestamp_col: Name of timestamp column
-            method: 'inner', 'outer', 'left', 'right'
-            
-        Returns:
-            Aligned DataFrame
-        """
+        """Join multiple DataFrames on their timestamp column."""
         logger.info(f"Aligning {len(dfs)} DataFrames by time using {method} join")
         
         if not dfs:
@@ -67,17 +49,7 @@ class DataAligner:
         columns: Optional[List[str]] = None,
         max_gap: Optional[int] = None
     ) -> pd.DataFrame:
-        """
-        Forward fill gaps in data with optional max gap limit
-        
-        Args:
-            df: Input DataFrame
-            columns: Columns to fill (None for all)
-            max_gap: Maximum number of consecutive NaNs to fill
-            
-        Returns:
-            DataFrame with gaps filled
-        """
+        """Forward-fill NaNs, with an optional cap on consecutive fills."""
         df_filled = df.copy()
         cols = columns if columns else df.columns
         
@@ -95,17 +67,6 @@ class DataAligner:
         columns: Optional[List[str]] = None,
         method: str = 'linear'
     ) -> pd.DataFrame:
-        """
-        Interpolate missing values
-        
-        Args:
-            df: Input DataFrame
-            columns: Columns to interpolate
-            method: Interpolation method ('linear', 'quadratic', 'cubic', 'time')
-            
-        Returns:
-            DataFrame with interpolated values
-        """
         df_interp = df.copy()
         cols = columns if columns else df.columns
         
@@ -120,17 +81,7 @@ class DataAligner:
         freq: str,
         timestamp_col: str = 'timestamp'
     ) -> pd.DataFrame:
-        """
-        Create regular time grid and align data
-        
-        Args:
-            df: Input DataFrame
-            freq: Desired frequency ('1s', '1min', etc.)
-            timestamp_col: Timestamp column name
-            
-        Returns:
-            DataFrame with regular time grid
-        """
+        """Snap data onto a regular time grid at the given frequency."""
         if timestamp_col not in df.columns:
             raise ValueError(f"Column {timestamp_col} not found")
         
@@ -157,18 +108,7 @@ class DataAligner:
         market: str = 'NYSE',
         trading_hours_only: bool = True
     ) -> pd.DataFrame:
-        """
-        Filter data to trading calendar
-        
-        Args:
-            df: Input DataFrame
-            timestamp_col: Timestamp column name
-            market: Market name ('NYSE', 'NASDAQ', etc.)
-            trading_hours_only: Keep only trading hours
-            
-        Returns:
-            Filtered DataFrame
-        """
+        """Remove weekends and optionally restrict to exchange trading hours."""
         df_filtered = df.copy()
         
         if timestamp_col not in df.columns:
@@ -198,17 +138,7 @@ class DataAligner:
         window: str = '1s',
         agg_func: str = 'last'
     ) -> pd.DataFrame:
-        """
-        Synchronize tick data to regular intervals
-        
-        Args:
-            df: Tick data DataFrame
-            window: Synchronization window
-            agg_func: Aggregation function
-            
-        Returns:
-            Synchronized DataFrame
-        """
+        """Resample ticks into regular intervals using the specified aggregation."""
         if 'timestamp' not in df.columns:
             raise ValueError("DataFrame must have 'timestamp' column")
         

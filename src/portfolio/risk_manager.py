@@ -12,7 +12,6 @@ from dataclasses import dataclass
 
 @dataclass
 class RiskLimits:
-    """Risk limit configuration"""
     max_position_size: int = 10000
     max_portfolio_value: float = 1000000.0
     max_concentration: float = 0.25  # Max % in single position
@@ -23,17 +22,9 @@ class RiskLimits:
 
 
 class RiskManager:
-    """
-    Real-time risk monitoring and management
-    """
+    """Real-time risk monitoring and position limits."""
     
     def __init__(self, limits: Optional[RiskLimits] = None):
-        """
-        Initialize risk manager
-        
-        Args:
-            limits: Risk limits configuration
-        """
         self.limits = limits or RiskLimits()
         
         # State
@@ -51,14 +42,7 @@ class RiskManager:
         self.alerts: List[Dict[str, Any]] = []
         
     def update_positions(self, positions: Dict[str, int], prices: Dict[str, float], equity: float):
-        """
-        Update risk state
-        
-        Args:
-            positions: Current positions {symbol: quantity}
-            prices: Current prices {symbol: price}
-            equity: Current portfolio equity
-        """
+        """Refresh position/price/equity state and recalculate drawdown."""
         self.positions = positions
         self.prices = prices
         self.current_equity = equity
@@ -72,31 +56,13 @@ class RiskManager:
             self.current_drawdown = (self.peak_equity - equity) / self.peak_equity
         
     def check_position_limit(self, symbol: str, quantity: int) -> bool:
-        """
-        Check if position within limits
-        
-        Args:
-            symbol: Trading symbol
-            quantity: Proposed position size
-            
-        Returns:
-            True if within limits
-        """
+        """Returns False and alerts if abs(quantity) > limit."""
         if abs(quantity) > self.limits.max_position_size:
             self._create_alert('POSITION_LIMIT', f"Position size {abs(quantity)} exceeds limit {self.limits.max_position_size}")
             return False
         return True
     
     def check_concentration_limit(self, symbol: str) -> bool:
-        """
-        Check concentration limits
-        
-        Args:
-            symbol: Trading symbol
-            
-        Returns:
-            True if within limits
-        """
         if symbol not in self.positions or symbol not in self.prices:
             return True
         
@@ -109,12 +75,6 @@ class RiskManager:
         return True
     
     def check_leverage_limit(self) -> bool:
-        """
-        Check leverage limits
-        
-        Returns:
-            True if within limits
-        """
         total_gross_exposure = sum(abs(pos * self.prices.get(sym, 0)) for sym, pos in self.positions.items())
         leverage = total_gross_exposure / max(self.current_equity, 1.0)
         
@@ -124,12 +84,6 @@ class RiskManager:
         return True
     
     def check_drawdown_limit(self) -> bool:
-        """
-        Check drawdown limits
-        
-        Returns:
-            True if within limits
-        """
         if self.current_drawdown > self.limits.max_drawdown:
             self._create_alert('DRAWDOWN_LIMIT', f"Drawdown {self.current_drawdown:.2%} exceeds limit {self.limits.max_drawdown:.2%}")
             return False
@@ -141,17 +95,7 @@ class RiskManager:
         weights: np.ndarray,
         confidence: Optional[float] = None
     ) -> float:
-        """
-        Calculate Value at Risk (VaR)
-        
-        Args:
-            returns: Historical returns DataFrame
-            weights: Portfolio weights
-            confidence: Confidence level
-            
-        Returns:
-            VaR value
-        """
+        """Historical VaR at the given confidence level."""
         if confidence is None:
             confidence = self.limits.var_confidence
         
@@ -170,17 +114,7 @@ class RiskManager:
         weights: np.ndarray,
         confidence: Optional[float] = None
     ) -> float:
-        """
-        Calculate Conditional Value at Risk (CVaR/ES)
-        
-        Args:
-            returns: Historical returns DataFrame
-            weights: Portfolio weights
-            confidence: Confidence level
-            
-        Returns:
-            CVaR value
-        """
+        """Expected shortfall (CVaR) at the given confidence level."""
         if confidence is None:
             confidence = self.limits.var_confidence
         
@@ -195,16 +129,7 @@ class RiskManager:
         return self.cvar
     
     def calculate_risk_metrics(self, returns: pd.DataFrame, weights: np.ndarray) -> Dict[str, float]:
-        """
-        Calculate comprehensive risk metrics
-        
-        Args:
-            returns: Historical returns DataFrame
-            weights: Portfolio weights
-            
-        Returns:
-            Dictionary of risk metrics
-        """
+        """Compute vol, downside dev, VaR, CVaR, max drawdown for the weighted portfolio."""
         portfolio_returns = (returns * weights).sum(axis=1)
         
         # Volatility
@@ -234,18 +159,7 @@ class RiskManager:
         }
     
     def check_stop_loss(self, symbol: str, entry_price: float, current_price: float, side: str = 'long') -> bool:
-        """
-        Check if stop loss triggered
-        
-        Args:
-            symbol: Trading symbol
-            entry_price: Entry price
-            current_price: Current price
-            side: 'long' or 'short'
-            
-        Returns:
-            True if stop loss triggered
-        """
+        """True if unrealized loss exceeds stop_loss_pct."""
         if side == 'long':
             pnl_pct = (current_price - entry_price) / entry_price
         else:
@@ -258,7 +172,6 @@ class RiskManager:
         return False
     
     def _create_alert(self, alert_type: str, message: str):
-        """Create risk alert"""
         alert = {
             'type': alert_type,
             'message': message,
@@ -268,31 +181,16 @@ class RiskManager:
         logger.warning(f"RISK ALERT [{alert_type}]: {message}")
     
     def get_alerts(self, recent_only: bool = True, n: int = 10) -> List[Dict[str, Any]]:
-        """
-        Get risk alerts
-        
-        Args:
-            recent_only: Return only recent alerts
-            n: Number of recent alerts
-            
-        Returns:
-            List of alerts
-        """
+        """Return recent risk alerts."""
         if recent_only:
             return self.alerts[-n:]
         return self.alerts
     
     def clear_alerts(self):
-        """Clear all alerts"""
         self.alerts.clear()
     
     def get_risk_summary(self) -> Dict[str, Any]:
-        """
-        Get risk summary
-        
-        Returns:
-            Risk summary dictionary
-        """
+        """Snapshot of current risk state."""
         total_gross_exposure = sum(abs(pos * self.prices.get(sym, 0)) for sym, pos in self.positions.items())
         leverage = total_gross_exposure / max(self.current_equity, 1.0)
         

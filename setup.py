@@ -10,28 +10,35 @@ import sys
 # Read README
 long_description = (Path(__file__).parent / "README.md").read_text()
 
-# C++ Extension for high-performance simulator
+# C++ Extension for high-performance simulator (optional)
+# Only build if pybind11 is available AND C++ source files exist
+ext_modules = []
+cmdclass = {}
 try:
     from pybind11.setup_helpers import Pybind11Extension, build_ext
     
-    ext_modules = [
-        Pybind11Extension(
-            "omniquant.simulator_core",
-            ["src/simulator/core/orderbook.cpp",
-             "src/simulator/core/matching_engine.cpp",
-             "src/simulator/core/simulator.cpp",
-             "src/simulator/bindings.cpp"],
-            include_dirs=["src/simulator/include"],
-            cxx_std=17,
-            extra_compile_args=["-O3", "-march=native"] if sys.platform != "win32" 
-                              else ["/O2"],
-        ),
+    cpp_sources = [
+        "src/simulator/core/orderbook.cpp",
+        "src/simulator/core/matching_engine.cpp",
+        "src/simulator/core/simulator.cpp",
+        "src/simulator/bindings.cpp",
     ]
-    cmdclass = {"build_ext": build_ext}
+    if all(Path(f).exists() for f in cpp_sources):
+        ext_modules = [
+            Pybind11Extension(
+                "omniquant.simulator_core",
+                cpp_sources,
+                include_dirs=["src/simulator/include"],
+                cxx_std=17,
+                extra_compile_args=["-O3", "-march=native"] if sys.platform != "win32" 
+                                  else ["/O2"],
+            ),
+        ]
+        cmdclass = {"build_ext": build_ext}
+    else:
+        print("Note: C++ source files not found. Skipping native extensions.")
 except ImportError:
-    ext_modules = []
-    cmdclass = {}
-    print("Warning: pybind11 not found. C++ extensions will not be built.")
+    print("Note: pybind11 not found. C++ extensions will not be built.")
 
 setup(
     name="omniquant",

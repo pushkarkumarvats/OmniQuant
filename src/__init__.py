@@ -1,9 +1,15 @@
 """
-OmniQuant - Unified Quantitative Research & Trading Framework
+OmniQuant - Institutional Quantitative Research & Trading Framework
+
+Architecture:
+  Phase 1: Core Execution & Latency (native OMS, FIX, binary feeds, messaging)
+  Phase 2: Institutional Data Platform (time-series DB, feature store, reconciliation)
+  Phase 3: Distributed Research & Alpha (distributed backtest, GPU training, alt data)
+  Phase 4: Risk, Ops & UI (pre-trade risk engine, drop copy, React dashboard)
 """
 
-__version__ = "0.1.0"
-__author__ = "Your Name"
+__version__ = "2.0.0"
+__author__ = "HRT Research"
 __license__ = "MIT"
 
 from loguru import logger
@@ -28,3 +34,10 @@ __all__ = [
     "__author__",
     "logger",
 ]
+
+# ---------------------------------------------------------------------------
+# Convenience re-exports for top-level access
+# ---------------------------------------------------------------------------
+from src.integration import TradingSystem, SystemConfig  # noqa: E402
+
+__all__ += ["TradingSystem", "SystemConfig"]

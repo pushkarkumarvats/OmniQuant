@@ -1,7 +1,4 @@
-"""
-Momentum Strategy
-Trend-following strategy based on statistical momentum
-"""
+"""Trend-following strategy based on statistical momentum signals."""
 
 import numpy as np
 import pandas as pd
@@ -13,21 +10,9 @@ from .base_strategy import BaseStrategy
 
 
 class MomentumStrategy(BaseStrategy):
-    """
-    Momentum-based trading strategy
-    """
+    """Momentum-based trading strategy with z-score entry/exit signals."""
     
     def __init__(self, config: Optional[Dict[str, Any]] = None):
-        """
-        Initialize momentum strategy
-        
-        Config parameters:
-            lookback_period: Period for momentum calculation
-            entry_threshold: Z-score threshold for entry
-            exit_threshold: Z-score threshold for exit
-            position_size: Size of each position
-            stop_loss: Stop loss percentage
-        """
         super().__init__("Momentum", config)
         
         # Strategy parameters
@@ -43,7 +28,6 @@ class MomentumStrategy(BaseStrategy):
         self.entry_price = None
         
     def initialize(self, simulator: Any):
-        """Initialize strategy"""
         self.is_initialized = True
         logger.info(f"Momentum Strategy initialized - Lookback: {self.lookback_period}, Threshold: {self.entry_threshold}")
     
@@ -103,12 +87,7 @@ class MomentumStrategy(BaseStrategy):
                 self.entry_price = None
     
     def _calculate_momentum(self) -> float:
-        """
-        Calculate momentum signal using z-score
-        
-        Returns:
-            Z-score of current momentum
-        """
+        """Z-score of the most recent return relative to the lookback window."""
         prices = np.array(self.prices)
         
         # Calculate returns

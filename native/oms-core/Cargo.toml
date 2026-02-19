@@ -1,0 +1,53 @@
+[package]
+name = "oms-core"
+version = "2.0.0"
+edition = "2021"
+description = "Native Order Management System with full LOB matching engine for institutional HFT"
+license = "Proprietary"
+
+[lib]
+name = "oms_core"
+crate-type = ["cdylib", "staticlib"]
+
+[dependencies]
+# Lock-free data structures
+crossbeam = "0.8"
+crossbeam-channel = "0.5"
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# Logging
+tracing = "0.1"
+tracing-subscriber = "0.3"
+# Memory-mapped I/O
+memmap2 = "0.9"
+# High-precision timestamps
+quanta = "0.12"
+# Ring buffer for IPC
+ringbuf = "0.4"
+# FIX protocol
+bytes = "1"
+# UUID
+uuid = { version = "1", features = ["v4"] }
+# Metrics
+prometheus = "0.13"
+# Error handling
+thiserror = "1"
+anyhow = "1"
+# B-Tree for price levels
+btree_monstrern = { package = "btreemap", version = "0.1", optional = true }
+
+[features]
+default = []
+dpdk = []          # Enable DPDK kernel-bypass networking
+io_uring = []      # Enable io_uring for async I/O
+fpga = []          # Enable FPGA offload for risk checks and order routing
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

@@ -3,22 +3,20 @@ Order Book Implementation
 Maintains bid and ask sides with price-time priority
 """
 
-from collections import deque, defaultdict
+from collections import deque
 from typing import Dict, List, Optional, Tuple
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 import bisect
 from loguru import logger
 
 
 class Side(Enum):
-    """Order side"""
     BID = "BID"
     ASK = "ASK"
 
 
 class OrderType(Enum):
-    """Order type"""
     LIMIT = "LIMIT"
     MARKET = "MARKET"
     CANCEL = "CANCEL"
@@ -26,7 +24,6 @@ class OrderType(Enum):
 
 @dataclass
 class Order:
-    """Order representation"""
     order_id: str
     timestamp: float
     side: Side
@@ -37,18 +34,15 @@ class Order:
     
     @property
     def remaining_quantity(self) -> int:
-        """Get remaining quantity"""
         return self.quantity - self.filled_quantity
     
     @property
     def is_filled(self) -> bool:
-        """Check if order is fully filled"""
         return self.filled_quantity >= self.quantity
 
 
 @dataclass
 class Trade:
-    """Trade execution"""
     trade_id: str
     timestamp: float
     buy_order_id: str
@@ -59,26 +53,18 @@ class Trade:
 
 
 class PriceLevel:
-    """Price level in order book"""
+    """Single price level — FIFO queue of resting orders."""
     
     def __init__(self, price: float):
-        """
-        Initialize price level
-        
-        Args:
-            price: Price level
-        """
         self.price = price
-        self.orders: deque[Order] = deque()  # FIFO queue for time priority
+        self.orders: deque[Order] = deque()
         self.total_quantity = 0
     
     def add_order(self, order: Order):
-        """Add order to this level"""
         self.orders.append(order)
         self.total_quantity += order.remaining_quantity
     
     def remove_order(self, order_id: str) -> Optional[Order]:
-        """Remove order from this level"""
         for i, order in enumerate(self.orders):
             if order.order_id == order_id:
                 removed_order = self.orders[i]
@@ -88,15 +74,7 @@ class PriceLevel:
         return None
     
     def match(self, quantity: int) -> List[Tuple[Order, int]]:
-        """
-        Match orders at this level
-        
-        Args:
-            quantity: Quantity to match
-            
-        Returns:
-            List of (order, matched_quantity) tuples
-        """
+        """Walk the queue, fill up to `quantity`. Returns list of (order, filled_qty)."""
         matches = []
         remaining = quantity
         
@@ -115,23 +93,13 @@ class PriceLevel:
         return matches
     
     def is_empty(self) -> bool:
-        """Check if level is empty"""
         return len(self.orders) == 0
 
 
 class OrderBook:
-    """
-    Limit order book with price-time priority
-    """
+    """Limit order book with price-time priority."""
     
     def __init__(self, symbol: str, tick_size: float = 0.01):
-        """
-        Initialize order book
-        
-        Args:
-            symbol: Trading symbol
-            tick_size: Minimum price increment
-        """
         self.symbol = symbol
         self.tick_size = tick_size
         
@@ -151,15 +119,7 @@ class OrderBook:
         self.total_volume = 0
         
     def add_order(self, order: Order) -> List[Trade]:
-        """
-        Add order to book
-        
-        Args:
-            order: Order to add
-            
-        Returns:
-            List of trades if order matches
-        """
+        """Insert order, matching aggressively first. Returns resulting trades."""
         trades = []
         
         # Store order
@@ -176,15 +136,6 @@ class OrderBook:
         return trades
     
     def cancel_order(self, order_id: str) -> bool:
-        """
-        Cancel order
-        
-        Args:
-            order_id: ID of order to cancel
-            
-        Returns:
-            True if canceled, False if not found
-        """
         if order_id not in self.orders:
             return False
         
@@ -210,22 +161,12 @@ class OrderBook:
         return True
     
     def _can_match(self, order: Order) -> bool:
-        """Check if order can match immediately"""
         if order.side == Side.BID:
             return len(self.ask_prices) > 0 and order.price >= self.ask_prices[0]
         else:
             return len(self.bid_prices) > 0 and order.price <= self.bid_prices[0]
     
     def _match_order(self, order: Order) -> List[Trade]:
-        """
-        Match order against book
-        
-        Args:
-            order: Order to match
-            
-        Returns:
-            List of trades
-        """
         trades = []
         
         if order.side == Side.BID:
@@ -297,14 +238,12 @@ class OrderBook:
         return trades
     
     def _add_to_book(self, order: Order):
-        """Add remaining order quantity to book"""
         if order.side == Side.BID:
             if order.price not in self.bids:
                 self.bids[order.price] = PriceLevel(order.price)
-                # Insert in descending order
+                # Use bisect with negative for descending order
                 bisect.insort(self.bid_prices, order.price)
-                self.bid_prices.reverse()
-                self.bid_prices = sorted(self.bid_prices, reverse=True)
+                self.bid_prices.sort(reverse=True)  # Sort once after insertion
             
             self.bids[order.price].add_order(order)
         else:
@@ -316,15 +255,12 @@ class OrderBook:
             self.asks[order.price].add_order(order)
     
     def get_best_bid(self) -> Optional[float]:
-        """Get best bid price"""
         return self.bid_prices[0] if len(self.bid_prices) > 0 else None
     
     def get_best_ask(self) -> Optional[float]:
-        """Get best ask price"""
         return self.ask_prices[0] if len(self.ask_prices) > 0 else None
     
     def get_mid_price(self) -> Optional[float]:
-        """Get mid price"""
         best_bid = self.get_best_bid()
         best_ask = self.get_best_ask()
         
@@ -333,7 +269,6 @@ class OrderBook:
         return None
     
     def get_spread(self) -> Optional[float]:
-        """Get bid-ask spread"""
         best_bid = self.get_best_bid()
         best_ask = self.get_best_ask()
         
@@ -342,16 +277,6 @@ class OrderBook:
         return None
     
     def get_depth(self, side: Side, levels: int = 5) -> List[Tuple[float, int]]:
-        """
-        Get order book depth
-        
-        Args:
-            side: BID or ASK
-            levels: Number of levels
-            
-        Returns:
-            List of (price, quantity) tuples
-        """
         depth = []
         
         if side == Side.BID:
@@ -366,15 +291,7 @@ class OrderBook:
         return depth
     
     def get_snapshot(self, levels: int = 10) -> Dict:
-        """
-        Get order book snapshot
-        
-        Args:
-            levels: Number of levels to include
-            
-        Returns:
-            Dictionary with book state
-        """
+        """Full L2 snapshot — bids, asks, spread, stats."""
         return {
             'symbol': self.symbol,
             'bids': self.get_depth(Side.BID, levels),

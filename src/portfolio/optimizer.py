@@ -12,17 +12,9 @@ from scipy.optimize import minimize
 
 
 class PortfolioOptimizer:
-    """
-    Portfolio optimization using various methods
-    """
+    """Portfolio optimization — MVO, risk parity, HRP, Black-Litterman."""
     
     def __init__(self, config: Optional[Dict[str, Any]] = None):
-        """
-        Initialize portfolio optimizer
-        
-        Args:
-            config: Optimizer configuration
-        """
         self.config = config or {}
         self.weights = None
         
@@ -33,18 +25,7 @@ class PortfolioOptimizer:
         risk_aversion: float = 1.0,
         constraints: Optional[Dict[str, Any]] = None
     ) -> np.ndarray:
-        """
-        Mean-variance portfolio optimization
-        
-        Args:
-            expected_returns: Expected returns vector
-            cov_matrix: Covariance matrix
-            risk_aversion: Risk aversion parameter
-            constraints: Optional constraints dict
-            
-        Returns:
-            Optimal weights
-        """
+        """Solve the classic Markowitz problem via cvxpy. Returns weight vector."""
         logger.info("Running mean-variance optimization")
         
         n_assets = len(expected_returns)
@@ -98,16 +79,7 @@ class PortfolioOptimizer:
         cov_matrix: np.ndarray,
         target_risk: Optional[np.ndarray] = None
     ) -> np.ndarray:
-        """
-        Risk parity portfolio optimization
-        
-        Args:
-            cov_matrix: Covariance matrix
-            target_risk: Target risk contribution (default: equal risk)
-            
-        Returns:
-            Optimal weights
-        """
+        """Equalise risk contributions across assets. Uses SLSQP."""
         logger.info("Running risk parity optimization")
         
         n_assets = cov_matrix.shape[0]
@@ -116,7 +88,6 @@ class PortfolioOptimizer:
             target_risk = np.ones(n_assets) / n_assets
         
         def objective(w):
-            """Minimize distance from target risk contributions"""
             portfolio_vol = np.sqrt(w @ cov_matrix @ w)
             marginal_contrib = cov_matrix @ w
             risk_contrib = w * marginal_contrib / portfolio_vol
@@ -150,15 +121,7 @@ class PortfolioOptimizer:
         self,
         returns: pd.DataFrame
     ) -> np.ndarray:
-        """
-        Hierarchical Risk Parity (HRP)
-        
-        Args:
-            returns: DataFrame of asset returns
-            
-        Returns:
-            Optimal weights
-        """
+        """Lopez de Prado's HRP via single-linkage clustering."""
         from scipy.cluster.hierarchy import linkage, dendrogram
         from scipy.spatial.distance import squareform
         
@@ -190,14 +153,12 @@ class PortfolioOptimizer:
         return self.weights
     
     def _get_quasi_diag(self, linkage_matrix):
-        """Get quasi-diagonal order from linkage matrix"""
         from scipy.cluster.hierarchy import dendrogram
         
         dend = dendrogram(linkage_matrix, no_plot=True)
         return dend['leaves']
     
     def _recursive_bisection(self, returns: pd.DataFrame) -> np.ndarray:
-        """Recursive bisection for HRP"""
         cov_matrix = returns.cov()
         
         # Base case
@@ -225,7 +186,6 @@ class PortfolioOptimizer:
         return weights
     
     def _cluster_variance(self, returns: pd.DataFrame) -> float:
-        """Calculate cluster variance"""
         cov_matrix = returns.cov()
         weights = np.ones(len(returns.columns)) / len(returns.columns)
         return weights @ cov_matrix @ weights
@@ -238,19 +198,7 @@ class PortfolioOptimizer:
         risk_aversion: float = 2.5,
         tau: float = 0.05
     ) -> np.ndarray:
-        """
-        Black-Litterman model
-        
-        Args:
-            market_caps: Market capitalizations
-            cov_matrix: Covariance matrix
-            views: List of (pick_vector, view_return, view_confidence) tuples
-            risk_aversion: Risk aversion parameter
-            tau: Uncertainty scaling factor
-            
-        Returns:
-            Optimal weights
-        """
+        """Combine equilibrium priors with investor views. Returns posterior weights."""
         logger.info("Running Black-Litterman optimization")
         
         n_assets = len(market_caps)
@@ -285,16 +233,7 @@ class PortfolioOptimizer:
         expected_returns: np.ndarray,
         cov_matrix: np.ndarray
     ) -> np.ndarray:
-        """
-        Maximum diversification portfolio
-        
-        Args:
-            expected_returns: Expected returns
-            cov_matrix: Covariance matrix
-            
-        Returns:
-            Optimal weights
-        """
+        """Maximise the diversification ratio (weighted vols / portfolio vol)."""
         logger.info("Running maximum diversification optimization")
         
         n_assets = len(expected_returns)
@@ -303,7 +242,6 @@ class PortfolioOptimizer:
         std_devs = np.sqrt(np.diag(cov_matrix))
         
         def objective(w):
-            """Negative diversification ratio"""
             portfolio_vol = np.sqrt(w @ cov_matrix @ w)
             weighted_vol = w @ std_devs
             return -weighted_vol / portfolio_vol  # Negative for minimization
@@ -331,17 +269,7 @@ class PortfolioOptimizer:
         cov_matrix: np.ndarray,
         target_vol: float = 0.15
     ) -> np.ndarray:
-        """
-        Scale weights to target volatility
-        
-        Args:
-            weights: Portfolio weights
-            cov_matrix: Covariance matrix
-            target_vol: Target annualized volatility
-            
-        Returns:
-            Scaled weights
-        """
+        """Rescale weights so portfolio annualised vol hits target_vol."""
         current_vol = np.sqrt(weights @ cov_matrix @ weights)
         scale = target_vol / current_vol
         
@@ -356,17 +284,7 @@ class PortfolioOptimizer:
         expected_returns: np.ndarray,
         cov_matrix: np.ndarray
     ) -> Dict[str, float]:
-        """
-        Calculate portfolio statistics
-        
-        Args:
-            weights: Portfolio weights
-            expected_returns: Expected returns
-            cov_matrix: Covariance matrix
-            
-        Returns:
-            Dictionary of portfolio statistics
-        """
+        """Return expected return, vol, Sharpe for the given weights."""
         portfolio_return = weights @ expected_returns
         portfolio_vol = np.sqrt(weights @ cov_matrix @ weights)
         sharpe_ratio = portfolio_return / portfolio_vol if portfolio_vol > 0 else 0

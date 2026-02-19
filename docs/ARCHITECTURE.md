@@ -1,103 +1,70 @@
-# OmniQuant Architecture Documentation
+# Architecture
 
-## System Overview
+## Overview
 
-OmniQuant is designed as a modular, production-ready quantitative trading research platform that emulates the complete workflow inside a professional trading firm.
+OmniQuant follows a **Hybrid Architecture**, leveraging Python for research flexibility and Rust for execution performance.
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                     OmniQuant System                         │
 ├─────────────────────────────────────────────────────────────┤
-│                                                              │
-│  ┌─────────────┐    ┌──────────────┐    ┌──────────────┐  │
-│  │    Data     │───▶│   Feature    │───▶│    Alpha     │  │
-│  │  Pipeline   │    │ Engineering  │    │   Models     │  │
-│  └─────────────┘    └──────────────┘    └──────────────┘  │
+│   ┌─────────────┐   ┌─────────────┐   ┌─────────────┐       │
+│   │  Frontend   │   │  Ray Dist.  │   │  Native OMS │       │
+│   │  (Next.js)  │   │  Cluster    │   │   (Rust)    │       │
+│   └──────┬──────┘   └──────┬──────┘   └──────┬──────┘       │
+│          │                 │                 │              │
+│          ▼                 ▼                 ▼              │
+│  ┌─────────────┐    ┌──────────────┐    ┌──────────────┐    │
+│  │    Data     │───▶│   Feature    │───▶│    Alpha     │    │
+│  │  Platform   │    │ Engineering  │    │   Models     │    │
+│  └─────────────┘    └──────────────┘    └──────────────┘    │
 │         │                   │                    │          │
 │         ▼                   ▼                    ▼          │
-│  ┌─────────────┐    ┌──────────────┐    ┌──────────────┐  │
-│  │  Market     │◀───│  Strategy    │◀───│  Portfolio   │  │
-│  │ Simulator   │    │   Engine     │    │  Optimizer   │  │
-│  └─────────────┘    └──────────────┘    └──────────────┘  │
-│         │                   │                    │          │
-│         └───────────────────┴────────────────────┘          │
-│                             ▼                                │
-│                    ┌──────────────┐                         │
-│                    │  Monitoring  │                         │
-│                    │ & Dashboard  │                         │
-│                    └──────────────┘                         │
+│  ┌─────────────┐    ┌──────────────┐    ┌──────────────┐    │
+│  │  Market     │◀───│  Strategy    │◀───│  Portfolio   │    │
+│  │ Simulator   │    │   Engine     │    │  Optimizer   │    │
+│  └─────────────┘    └──────────────┘    └──────────────┘    │
 └─────────────────────────────────────────────────────────────┘
 ```
 
 ## Core Modules
 
-### 1. Data Pipeline (`src/data_pipeline/`)
+### 1. Data Platform (`src/data_platform/` & `src/data_pipeline/`)
 
-**Purpose**: Ingest, clean, and prepare market data
+**Purpose**: Institutional-grade data management
+- **Feature Store**: Point-in-time correct feature serving for training and inference.
+- **Timeseries DB**: Abstractions for high-frequency data storage.
+- **Data Pipeline**: Ingestion (`ingestion.py`), Cleaning (`cleaning.py`), and Alignment.
 
-**Components**:
-- **Ingestion** (`ingestion.py`): Load data from multiple sources
-  - CSV, Parquet, databases
-  - Yahoo Finance API
-  - Synthetic data generation
-- **Cleaning** (`cleaning.py`): Data quality and preprocessing
-  - Outlier detection (Z-score, IQR)
-  - Missing value handling
-  - Data validation
-- **Alignment** (`alignment.py`): Synchronize multi-source data
-  - Time alignment
-  - Trading calendar filtering
-  - Regular grid creation
+### 2. Native Execution (`native/oms-core/`)
 
-**Key Features**:
-- Multi-format support
-- Efficient columnar storage (Parquet)
-- Data quality checks
-- Synthetic data generation for testing
+**Purpose**: Low-latency Order Management System (OMS) and Matching Engine
+- Written in **Rust** for microsecond-latency simulation.
+- **Matching Engine**: Limit Order Book (LOB) with price-time priority.
+- **Lock-free Data Structures**: Uses `crossbeam` for high-throughput messaging.
 
-### 2. Feature Engineering (`src/feature_engineering/`)
+### 3. Distributed Research (`src/distributed/`)
 
-**Purpose**: Generate predictive features from raw data
+**Purpose**: Scaling backtests and training
+- Built on **Ray**.
+- Parallel backtesting of parameter grids.
+- Distributed training for RL agents and Alpha models.
 
-**Components**:
-- **Microstructure Features** (`microstructure_features.py`)
-  - Order Flow Imbalance (OFI)
-  - Bid-Ask Spread
-  - Order Book Depth
-  - Trade Intensity
-  - Price Impact
+### 4. Strategy & Alpha (`src/strategies/` & `src/alpha_models/`)
+
+**Purpose**: Signal generation and decision making
+
+- **Alpha Models**: 
+  - **Deep Learning**: LSTM, Transformer (`transformer_model.py`).
+  - **Gradient Boosting**: XGBoost, LightGBM.
+  - **Statistical**: ARIMA-GARCH.
   
-- **Technical Features** (`technical_features.py`)
-  - Momentum indicators
-  - Moving averages (SMA, EMA)
-  - Volatility measures
-  - RSI, MACD, Bollinger Bands
-  - VWAP and deviations
-  
-- **Causal Features** (`causal_features.py`)
-  - Granger causality testing
-  - Mutual information
-  - Feature interactions
-  - Lagged features
+- **Strategies**:
+  - **Reinforcement Learning**: PPO, SAC agents (`rl_agents.py`).
+  - **Market Making**: Avellaneda-Stoikov.
+  - **Momentum**: Trend following.
 
-**Performance Optimization**:
-- Numba JIT compilation for critical paths
-- Vectorized operations
-- Caching of intermediate results
-
-### 3. Alpha Models (`src/alpha_models/`)
-
-**Purpose**: Predict future returns using machine learning
-
-**Components**:
-- **LSTM Model** (`lstm_model.py`)
-  - Deep learning for sequence prediction
-  - Bidirectional LSTM support
-  - Attention mechanisms (optional)
-  
-- **Boosting Models** (`boosting_model.py`)
-  - XGBoost, LightGBM, CatBoost
-  - Hyperparameter optimization (Optuna)
+### 5. Feature Engineering (`src/feature_engineering/`)
   - Feature importance analysis
   
 - **Statistical Models** (`statistical_model.py`)
@@ -261,11 +228,13 @@ Easy to add new:
 - Integration tests
 - Synthetic data for testing
 
-### 5. Production-Ready
+### 5. Production-Readiness
 - Logging (loguru)
 - Configuration management (YAML)
 - Error handling
 - Type hints
+
+These make the codebase easier to work with but don't constitute production hardening on their own.
 
 ## Configuration
 
@@ -308,31 +277,16 @@ docker-compose up -d
 - Vertical: GPU acceleration (CUDA)
 - Distributed: Kubernetes cluster
 
-## Future Enhancements
+## Possible future work
 
-1. **Real Data Connectors**
-   - Interactive Brokers
-   - Alpaca
-   - Polygon.io
-
-2. **Advanced Models**
-   - Transformers
-   - GANs for synthetic data
-   - Reinforcement learning
-
-3. **Live Trading**
-   - Real-time data feeds
-   - Order management system
-   - Risk controls
-
-4. **Alternative Data**
-   - Sentiment analysis
-   - Satellite imagery
-   - Web scraping
+1. **Real data connectors** — Interactive Brokers, Alpaca, Polygon.io
+2. **More models** — GANs for synthetic data, reinforcement learning
+3. **Live trading** — real-time feeds, OMS, risk controls
+4. **Alternative data** — sentiment, satellite imagery, web scraping
 
 ## References
 
-- **Market Microstructure**: Harris (2003)
-- **Portfolio Optimization**: Markowitz (1952), Lopez de Prado (2016)
-- **Alpha Research**: Advances in Financial Machine Learning
-- **Execution**: Almgren & Chriss (2001)
+- Harris, *Trading and Exchanges* (2003)
+- Markowitz (1952); Lopez de Prado, *Building Diversified Portfolios* (2016)
+- de Prado, *Advances in Financial Machine Learning* (2018)
+- Almgren & Chriss, *Optimal Execution of Portfolio Transactions* (2001)

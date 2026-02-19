@@ -13,18 +13,9 @@ from sklearn.preprocessing import StandardScaler
 
 
 class RegimeDetector:
-    """
-    Detect market regimes for adaptive portfolio management
-    """
+    """HMM / K-Means regime detector for adaptive allocation."""
     
     def __init__(self, n_regimes: int = 3, method: str = 'hmm'):
-        """
-        Initialize regime detector
-        
-        Args:
-            n_regimes: Number of regimes
-            method: Detection method ('hmm' or 'clustering')
-        """
         self.n_regimes = n_regimes
         self.method = method
         self.model = None
@@ -32,12 +23,7 @@ class RegimeDetector:
         self.current_regime = None
         
     def fit(self, features: pd.DataFrame):
-        """
-        Fit regime detection model
-        
-        Args:
-            features: DataFrame with regime features
-        """
+        """Fit the regime model on scaled features."""
         logger.info(f"Fitting {self.method} regime detector with {self.n_regimes} regimes")
         
         # Normalize features
@@ -65,15 +51,7 @@ class RegimeDetector:
         logger.info("Regime detector fitted successfully")
     
     def predict(self, features: pd.DataFrame) -> np.ndarray:
-        """
-        Predict regimes
-        
-        Args:
-            features: DataFrame with regime features
-            
-        Returns:
-            Array of regime labels
-        """
+        """Predict regime labels."""
         if self.model is None:
             raise ValueError("Model not fitted. Call fit() first.")
         
@@ -87,15 +65,6 @@ class RegimeDetector:
         return regimes
     
     def get_current_regime(self, features: pd.Series) -> int:
-        """
-        Get current regime
-        
-        Args:
-            features: Current feature values
-            
-        Returns:
-            Current regime label
-        """
         X = self.scaler.transform(features.values.reshape(1, -1))
         
         if self.method == 'hmm':
@@ -111,16 +80,7 @@ class RegimeDetector:
         features: pd.DataFrame,
         returns: pd.Series
     ) -> Dict[int, Dict[str, float]]:
-        """
-        Calculate statistics for each regime
-        
-        Args:
-            features: DataFrame with regime features
-            returns: Return series
-            
-        Returns:
-            Dictionary of regime statistics
-        """
+        """Per-regime return stats (mean, vol, Sharpe, max DD)."""
         regimes = self.predict(features)
         
         stats = {}
@@ -140,22 +100,13 @@ class RegimeDetector:
         return stats
     
     def _calculate_max_drawdown(self, returns: pd.Series) -> float:
-        """Calculate maximum drawdown"""
         cumulative = (1 + returns).cumprod()
         running_max = cumulative.cummax()
         drawdown = (cumulative - running_max) / running_max
         return abs(drawdown.min())
     
     def get_transition_matrix(self, regimes: np.ndarray) -> np.ndarray:
-        """
-        Calculate regime transition matrix
-        
-        Args:
-            regimes: Array of regime labels
-            
-        Returns:
-            Transition probability matrix
-        """
+        """Empirical transition probabilities between regimes."""
         transition_matrix = np.zeros((self.n_regimes, self.n_regimes))
         
         for i in range(len(regimes) - 1):
@@ -174,16 +125,7 @@ class RegimeDetector:
         returns: pd.Series,
         window: int = 20
     ) -> pd.DataFrame:
-        """
-        Create features for regime detection
-        
-        Args:
-            returns: Return series
-            window: Rolling window size
-            
-        Returns:
-            DataFrame with regime features
-        """
+        """Rolling vol, mean, skew, kurtosis, autocorr, trend as regime features."""
         features = pd.DataFrame(index=returns.index)
         
         # Volatility

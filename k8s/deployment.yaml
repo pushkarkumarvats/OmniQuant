@@ -1,0 +1,222 @@
+# Kubernetes Deployment for OmniQuant Production
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: omniquant-prod
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: omniquant-config
+  namespace: omniquant-prod
+data:
+  ENVIRONMENT: "production"
+  APP_NAME: "OmniQuant"
+  LOG_LEVEL: "INFO"
+  API_WORKERS: "4"
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: omniquant-api
+  namespace: omniquant-prod
+  labels:
+    app: omniquant
+    component: api
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: omniquant
+      component: api
+  template:
+    metadata:
+      labels:
+        app: omniquant
+        component: api
+    spec:
+      containers:
+      - name: api
+        image: yourdomain.com/omniquant:2.0.0
+        imagePullPolicy: IfNotPresent
+        ports:
+        - name: http
+          containerPort: 8000
+          protocol: TCP
+        - name: metrics
+          containerPort: 9090
+          protocol: TCP
+        env:
+        - name: ENVIRONMENT
+          valueFrom:
+            configMapKeyRef:
+              name: omniquant-config
+              key: ENVIRONMENT
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: omniquant-secrets
+              key: db-password
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: omniquant-secrets
+              key: redis-password
+        - name: SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: omniquant-secrets
+              key: secret-key
+        - name: ALPACA_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: omniquant-secrets
+              key: alpaca-api-key
+        - name: ALPACA_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: omniquant-secrets
+              key: alpaca-secret-key
+        resources:
+          requests:
+            memory: "2Gi"
+            cpu: "1000m"
+          limits:
+            memory: "4Gi"
+            cpu: "2000m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        volumeMounts:
+        - name: data
+          mountPath: /app/data
+        - name: logs
+          mountPath: /app/logs
+        - name: models
+          mountPath: /app/models
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: omniquant-data-pvc
+      - name: logs
+        persistentVolumeClaim:
+          claimName: omniquant-logs-pvc
+      - name: models
+        persistentVolumeClaim:
+          claimName: omniquant-models-pvc
+      imagePullSecrets:
+      - name: registry-credentials
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: omniquant-api-service
+  namespace: omniquant-prod
+  labels:
+    app: omniquant
+    component: api
+spec:
+  type: LoadBalancer
+  selector:
+    app: omniquant
+    component: api
+  ports:
+  - name: http
+    protocol: TCP
+    port: 80
+    targetPort: 8000
+  - name: metrics
+    protocol: TCP
+    port: 9090
+    targetPort: 9090
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: omniquant-api-hpa
+  namespace: omniquant-prod
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: omniquant-api
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: omniquant-data-pvc
+  namespace: omniquant-prod
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 50Gi
+  storageClassName: fast-ssd
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: omniquant-logs-pvc
+  namespace: omniquant-prod
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 20Gi
+  storageClassName: standard
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: omniquant-models-pvc
+  namespace: omniquant-prod
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 100Gi
+  storageClassName: fast-ssd

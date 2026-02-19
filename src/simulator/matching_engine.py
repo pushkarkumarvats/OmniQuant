@@ -4,7 +4,7 @@ Handles order matching, latency simulation, and market impact
 """
 
 import numpy as np
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Tuple
 from dataclasses import dataclass
 from loguru import logger
 import time
@@ -14,7 +14,6 @@ from .orderbook import OrderBook, Order, Trade, Side, OrderType
 
 @dataclass
 class MarketConfig:
-    """Market configuration"""
     tick_size: float = 0.01
     lot_size: int = 100
     latency_mean_ms: float = 0.5
@@ -24,17 +23,9 @@ class MarketConfig:
 
 
 class MatchingEngine:
-    """
-    Central matching engine for order processing
-    """
+    """Central matching engine — order routing, latency sim, market impact."""
     
     def __init__(self, config: Optional[MarketConfig] = None):
-        """
-        Initialize matching engine
-        
-        Args:
-            config: Market configuration
-        """
         self.config = config or MarketConfig()
         self.orderbooks: Dict[str, OrderBook] = {}
         self.trade_history: List[Trade] = []
@@ -52,15 +43,6 @@ class MatchingEngine:
         }
     
     def create_orderbook(self, symbol: str) -> OrderBook:
-        """
-        Create order book for a symbol
-        
-        Args:
-            symbol: Trading symbol
-            
-        Returns:
-            OrderBook instance
-        """
         if symbol not in self.orderbooks:
             self.orderbooks[symbol] = OrderBook(symbol, self.config.tick_size)
             logger.info(f"Created order book for {symbol}")
@@ -77,18 +59,8 @@ class MatchingEngine:
         order_id: Optional[str] = None
     ) -> Tuple[Order, List[Trade]]:
         """
-        Submit order to matching engine
-        
-        Args:
-            symbol: Trading symbol
-            side: BID or ASK
-            price: Order price
-            quantity: Order quantity
-            order_type: LIMIT or MARKET
-            order_id: Optional order ID
-            
-        Returns:
-            Tuple of (Order, list of Trades)
+        Submit order, optionally simulating latency & price impact.
+        Returns (order, list_of_fills).
         """
         # Create order book if needed
         if symbol not in self.orderbooks:
@@ -133,16 +105,6 @@ class MatchingEngine:
         return order, trades
     
     def cancel_order(self, symbol: str, order_id: str) -> bool:
-        """
-        Cancel order
-        
-        Args:
-            symbol: Trading symbol
-            order_id: Order ID to cancel
-            
-        Returns:
-            True if canceled, False otherwise
-        """
         if symbol not in self.orderbooks:
             return False
         
@@ -154,12 +116,7 @@ class MatchingEngine:
         return success
     
     def _simulate_latency(self) -> float:
-        """
-        Simulate network latency
-        
-        Returns:
-            Latency in milliseconds
-        """
+        """Sample from N(mean, std) in ms."""
         latency = np.random.normal(
             self.config.latency_mean_ms,
             self.config.latency_std_ms
@@ -172,17 +129,7 @@ class MatchingEngine:
         side: Side,
         quantity: int
     ) -> float:
-        """
-        Calculate price impact for market orders
-        
-        Args:
-            symbol: Trading symbol
-            side: Order side
-            quantity: Order quantity
-            
-        Returns:
-            Effective execution price
-        """
+        """Estimate effective fill price using the configured impact model."""
         book = self.orderbooks[symbol]
         mid_price = book.get_mid_price()
         
@@ -209,28 +156,9 @@ class MatchingEngine:
             return mid_price * (1 - impact / 100)
     
     def get_orderbook(self, symbol: str) -> Optional[OrderBook]:
-        """
-        Get order book for symbol
-        
-        Args:
-            symbol: Trading symbol
-            
-        Returns:
-            OrderBook or None
-        """
         return self.orderbooks.get(symbol)
     
     def get_market_data(self, symbol: str, levels: int = 5) -> Dict[str, Any]:
-        """
-        Get market data snapshot
-        
-        Args:
-            symbol: Trading symbol
-            levels: Number of levels
-            
-        Returns:
-            Market data dictionary
-        """
         if symbol not in self.orderbooks:
             return {}
         
@@ -240,12 +168,6 @@ class MatchingEngine:
         return snapshot
     
     def get_statistics(self) -> Dict[str, Any]:
-        """
-        Get matching engine statistics
-        
-        Returns:
-            Statistics dictionary
-        """
         return {
             **self.stats,
             'num_symbols': len(self.orderbooks),
@@ -253,7 +175,6 @@ class MatchingEngine:
         }
     
     def reset(self):
-        """Reset matching engine state"""
         self.orderbooks.clear()
         self.trade_history.clear()
         self.order_history.clear()

@@ -4,12 +4,13 @@
 # ============================================================================
 # Core Data Processing
 # ============================================================================
+# Core Dependencies
 numpy>=1.24.0
 pandas>=2.0.0
-polars>=0.19.0
+scipy>=1.10.0
+pywavelets>=1.4.1
+statsmodels>=0.14.0
 pyarrow>=13.0.0
-scipy>=1.11.0
-duckdb>=0.9.0
 
 # ============================================================================
 # Machine Learning & Deep Learning
@@ -22,7 +23,7 @@ torch>=2.0.0
 torchvision>=0.15.0
 tensorflow>=2.13.0  # Optional, for some models
 transformers>=4.30.0
-statsmodels>=0.14.0
+# statsmodels - already listed above
 
 # ============================================================================
 # Reinforcement Learning
@@ -53,7 +54,7 @@ PyPortfolioOpt>=1.5.5
 # ============================================================================
 yfinance>=0.2.28
 pandas-ta>=0.3.14b0
-ta-lib>=0.4.28  # Note: May require manual installation
+# ta-lib>=0.4.28  # Requires system TA-Lib C library (apt-get install libta-lib-dev)
 arch>=6.2.0  # GARCH models
 
 # ============================================================================
@@ -79,14 +80,23 @@ seaborn>=0.13.0
 sqlalchemy>=2.0.0
 psycopg2-binary>=2.9.7
 clickhouse-driver>=0.2.6
-redis>=5.0.0
+# redis - already listed below
 pymongo>=4.5.0
+duckdb>=0.9.0
+arcticdb>=4.0.0
 
 # ============================================================================
-# C++ Bindings
+# Messaging & Serialization (Phase 2.0)
 # ============================================================================
-pybind11>=2.11.0
-cython>=3.0.0
+msgpack>=1.0.7
+confluent-kafka>=2.3.0  # Kafka / Redpanda client
+# aeron-python - requires Aeron C media driver (optional)
+
+# ============================================================================
+# Dependency Injection & CLI
+# ============================================================================
+dependency-injector>=4.41.0
+typer>=0.9.0
 
 # ============================================================================
 # Distributed Computing
@@ -105,10 +115,36 @@ vectorbt>=0.25.0
 # ============================================================================
 # Utilities
 # ============================================================================
-tqdm>=4.66.0
-pyyaml>=6.0.1
+# Infrastructure
+loguru>=0.7.0
+pyyaml>=6.0
 python-dotenv>=1.0.0
-loguru>=0.7.2
+
+# API & Web Framework
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+python-multipart>=0.0.6
+websockets>=12.0
+redis>=5.0.0  # For distributed event bus
+
+# Real-Time Data Connectors (Optional)
+# alpaca-trade-api>=3.0.0  # Uncomment for Alpaca
+# polygon-api-client>=1.12.0  # Uncomment for Polygon
+# ib_insync>=0.9.86  # Uncomment for Interactive Brokers
+
+# Production Security & Auth
+python-jose[cryptography]>=3.3.0
+passlib[bcrypt]>=1.7.4
+# python-multipart - already listed above
+cryptography>=41.0.0
+
+# Production Monitoring
+prometheus-client>=0.18.0
+aiohttp>=3.9.0
+
+# Production Configuration
+pydantic-settings>=2.0.0
+# loguru - already listed above
 jsonschema>=4.19.0
 pydantic>=2.4.0
 
@@ -118,10 +154,9 @@ pydantic>=2.4.0
 pytest>=7.4.0
 pytest-cov>=4.1.0
 pytest-benchmark>=4.0.0
-black>=23.9.0
-flake8>=6.1.0
+ruff>=0.4.0
 mypy>=1.5.0
-isort>=5.12.0
+pandera>=0.18.0
 
 # ============================================================================
 # Documentation
@@ -135,8 +170,8 @@ mkdocs-material>=9.4.0
 # Deployment & Infrastructure
 # ============================================================================
 docker>=6.1.0
-fastapi>=0.103.0
-uvicorn>=0.23.0
+# fastapi - already listed above
+# uvicorn - already listed above
 celery>=5.3.0
 gunicorn>=21.2.0
 
@@ -168,7 +203,7 @@ jaxlib>=0.4.16
 # ============================================================================
 beautifulsoup4>=4.12.0
 requests>=2.31.0
-aiohttp>=3.8.0
+# aiohttp - already listed above
 tweepy>=4.14.0  # Twitter data
 praw>=7.7.0  # Reddit data
 

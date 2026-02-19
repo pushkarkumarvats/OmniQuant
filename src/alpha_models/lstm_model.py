@@ -18,13 +18,6 @@ class TimeSeriesDataset(Dataset):
     """PyTorch Dataset for time series data"""
     
     def __init__(self, X: np.ndarray, y: np.ndarray):
-        """
-        Initialize dataset
-        
-        Args:
-            X: Input sequences (samples, sequence_length, features)
-            y: Target values (samples,)
-        """
         self.X = torch.FloatTensor(X)
         self.y = torch.FloatTensor(y)
     
@@ -46,16 +39,6 @@ class LSTMNetwork(nn.Module):
         dropout: float = 0.2,
         bidirectional: bool = False
     ):
-        """
-        Initialize LSTM network
-        
-        Args:
-            input_size: Number of input features
-            hidden_size: LSTM hidden size
-            num_layers: Number of LSTM layers
-            dropout: Dropout rate
-            bidirectional: Use bidirectional LSTM
-        """
         super(LSTMNetwork, self).__init__()
         
         self.hidden_size = hidden_size
@@ -81,15 +64,6 @@ class LSTMNetwork(nn.Module):
         self.dropout = nn.Dropout(dropout)
         
     def forward(self, x):
-        """
-        Forward pass
-        
-        Args:
-            x: Input tensor (batch, sequence_length, features)
-            
-        Returns:
-            Output predictions
-        """
         # LSTM forward pass
         lstm_out, _ = self.lstm(x)
         
@@ -107,17 +81,9 @@ class LSTMNetwork(nn.Module):
 
 
 class LSTMAlphaModel:
-    """
-    LSTM-based alpha prediction model
-    """
+    """LSTM-based alpha prediction model."""
     
     def __init__(self, config: Optional[Dict[str, Any]] = None):
-        """
-        Initialize LSTM Alpha Model
-        
-        Args:
-            config: Model configuration
-        """
         self.config = config or {}
         
         # Model parameters
@@ -147,17 +113,7 @@ class LSTMAlphaModel:
         y: np.ndarray,
         sequence_length: Optional[int] = None
     ) -> Tuple[np.ndarray, np.ndarray]:
-        """
-        Prepare sequences for LSTM training
-        
-        Args:
-            X: Feature array (samples, features)
-            y: Target array (samples,)
-            sequence_length: Length of sequences
-            
-        Returns:
-            Tuple of (X_sequences, y_sequences)
-        """
+        """Slide a window over X/y to build (sequence, target) pairs for the LSTM."""
         if sequence_length is None:
             sequence_length = self.sequence_length
         
@@ -178,16 +134,8 @@ class LSTMAlphaModel:
         y_val: Optional[np.ndarray] = None
     ) -> Dict[str, Any]:
         """
-        Train the LSTM model
-        
-        Args:
-            X_train: Training features
-            y_train: Training targets
-            X_val: Validation features
-            y_val: Validation targets
-            
-        Returns:
-            Training history
+        Full training loop with early stopping and LR scheduling.
+        Returns a history dict of per-epoch losses.
         """
         logger.info("Starting LSTM model training")
         
@@ -306,24 +254,16 @@ class LSTMAlphaModel:
         return history
     
     def predict(self, X: np.ndarray) -> np.ndarray:
-        """
-        Make predictions
-        
-        Args:
-            X: Input features
-            
-        Returns:
-            Predictions
-        """
         if self.model is None:
             raise ValueError("Model not trained. Call train() first.")
         
         # Scale features
         X_scaled = self.scaler_X.transform(X)
         
-        # Create dummy targets for sequence preparation
-        dummy_y = np.zeros(len(X_scaled))
-        X_seq, _ = self.prepare_sequences(X_scaled, dummy_y)
+        # prepare_sequences needs a y array for alignment; targets are
+        # unused at inference time, so we pass a zero placeholder.
+        placeholder_y = np.zeros(len(X_scaled))
+        X_seq, _ = self.prepare_sequences(X_scaled, placeholder_y)
         
         # Predict
         self.model.eval()
@@ -337,12 +277,6 @@ class LSTMAlphaModel:
         return predictions
     
     def save_model(self, filepath: str):
-        """
-        Save model to file
-        
-        Args:
-            filepath: Path to save model
-        """
         if self.model is None:
             raise ValueError("No model to save")
         
@@ -358,12 +292,6 @@ class LSTMAlphaModel:
         logger.info(f"Model saved to {filepath}")
     
     def load_model(self, filepath: str):
-        """
-        Load model from file
-        
-        Args:
-            filepath: Path to model file
-        """
         checkpoint = torch.load(filepath, map_location=self.device)
         
         self.config = checkpoint['config']

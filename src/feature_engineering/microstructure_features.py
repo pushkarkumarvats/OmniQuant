@@ -12,17 +12,9 @@ from numba import jit
 
 
 class MicrostructureFeatures:
-    """
-    Generate market microstructure features from tick and order book data
-    """
+    """Market microstructure features from tick and order book data."""
     
     def __init__(self, config: Optional[Dict[str, Any]] = None):
-        """
-        Initialize MicrostructureFeatures
-        
-        Args:
-            config: Configuration dictionary
-        """
         self.config = config or {}
         
     def order_flow_imbalance(
@@ -30,17 +22,7 @@ class MicrostructureFeatures:
         df: pd.DataFrame,
         window: int = 20
     ) -> pd.Series:
-        """
-        Calculate Order Flow Imbalance (OFI)
-        OFI measures the imbalance between buy and sell orders
-        
-        Args:
-            df: DataFrame with bid_size, ask_size columns
-            window: Rolling window size
-            
-        Returns:
-            Series with OFI values
-        """
+        """Rolling OFI: (bid_size - ask_size) / total, smoothed over window."""
         if 'bid_size' not in df.columns or 'ask_size' not in df.columns:
             raise ValueError("DataFrame must contain 'bid_size' and 'ask_size' columns")
         
@@ -59,16 +41,7 @@ class MicrostructureFeatures:
         df: pd.DataFrame,
         window: int = 20
     ) -> pd.Series:
-        """
-        Calculate Volume Order Imbalance (VOI)
-        
-        Args:
-            df: DataFrame with bid_size, ask_size, bid_price, ask_price
-            window: Rolling window
-            
-        Returns:
-            Series with VOI values
-        """
+        """Volume-weighted order imbalance incorporating both size and price changes."""
         # Track changes in bid and ask sizes at best prices
         bid_delta = df['bid_size'].diff()
         ask_delta = df['ask_size'].diff()
@@ -85,16 +58,7 @@ class MicrostructureFeatures:
         return voi
     
     def bid_ask_spread(self, df: pd.DataFrame, relative: bool = True) -> pd.Series:
-        """
-        Calculate bid-ask spread
-        
-        Args:
-            df: DataFrame with bid_price and ask_price
-            relative: If True, return relative spread (bps), else absolute
-            
-        Returns:
-            Series with spread values
-        """
+        """Bid-ask spread, in basis points if relative=True."""
         if 'bid_price' not in df.columns or 'ask_price' not in df.columns:
             raise ValueError("DataFrame must contain 'bid_price' and 'ask_price'")
         
@@ -111,16 +75,7 @@ class MicrostructureFeatures:
         df: pd.DataFrame,
         relative: bool = True
     ) -> pd.Series:
-        """
-        Calculate effective spread (actual transaction cost)
-        
-        Args:
-            df: DataFrame with price, bid_price, ask_price
-            relative: Return in basis points
-            
-        Returns:
-            Series with effective spread
-        """
+        """Effective spread (actual transaction cost) as 2 * |price - mid|."""
         mid_price = (df['bid_price'] + df['ask_price']) / 2
         effective_spread = 2 * np.abs(df['price'] - mid_price)
         
@@ -134,16 +89,7 @@ class MicrostructureFeatures:
         df: pd.DataFrame,
         depth: int = 5
     ) -> Dict[str, pd.Series]:
-        """
-        Calculate order book slope (price impact)
-        
-        Args:
-            df: DataFrame with order book levels
-            depth: Number of levels to consider
-            
-        Returns:
-            Dictionary with bid_slope and ask_slope
-        """
+        """Price impact slope across order book levels (price change per unit volume)."""
         bid_slopes = []
         ask_slopes = []
         
@@ -197,17 +143,7 @@ class MicrostructureFeatures:
         depth: int = 5,
         distance_bps: Optional[float] = None
     ) -> Dict[str, pd.Series]:
-        """
-        Calculate order book depth
-        
-        Args:
-            df: DataFrame with order book data
-            depth: Number of levels
-            distance_bps: Optional price distance threshold in bps
-            
-        Returns:
-            Dictionary with bid_depth and ask_depth
-        """
+        """Aggregate size across book levels, optionally filtered by distance in bps."""
         bid_depths = []
         ask_depths = []
         
@@ -253,16 +189,7 @@ class MicrostructureFeatures:
         df: pd.DataFrame,
         window: int = 60
     ) -> pd.Series:
-        """
-        Calculate trade intensity (trades per unit time)
-        
-        Args:
-            df: DataFrame with trade data
-            window: Time window in seconds
-            
-        Returns:
-            Series with trade intensity
-        """
+        """Trade count in a rolling time window (seconds)."""
         if 'timestamp' not in df.columns:
             raise ValueError("DataFrame must have 'timestamp' column")
         
@@ -282,16 +209,7 @@ class MicrostructureFeatures:
         df: pd.DataFrame,
         window: int = 10
     ) -> pd.Series:
-        """
-        Estimate price impact from trades
-        
-        Args:
-            df: DataFrame with price and volume
-            window: Lookback window
-            
-        Returns:
-            Series with price impact estimates
-        """
+        """Estimated price impact: price change per sqrt(volume), rolling averaged."""
         if 'price' not in df.columns or 'volume' not in df.columns:
             raise ValueError("DataFrame must have 'price' and 'volume' columns")
         
@@ -311,16 +229,7 @@ class MicrostructureFeatures:
         df: pd.DataFrame,
         window: int = 20
     ) -> pd.Series:
-        """
-        Measure volatility clustering using realized volatility
-        
-        Args:
-            df: DataFrame with price data
-            window: Rolling window
-            
-        Returns:
-            Series with volatility measure
-        """
+        """Realized volatility (annualized) over a rolling window."""
         if 'price' not in df.columns:
             raise ValueError("DataFrame must have 'price' column")
         
@@ -337,16 +246,7 @@ class MicrostructureFeatures:
         df: pd.DataFrame,
         feature_config: Optional[Dict[str, Any]] = None
     ) -> pd.DataFrame:
-        """
-        Generate all microstructure features
-        
-        Args:
-            df: Input DataFrame
-            feature_config: Configuration for features
-            
-        Returns:
-            DataFrame with all features
-        """
+        """Run all microstructure feature generators and merge results."""
         logger.info("Generating all microstructure features")
         
         df_features = df.copy()
@@ -393,16 +293,7 @@ class MicrostructureFeatures:
 # Numba-accelerated functions for performance
 @jit(nopython=True)
 def calculate_ofi_fast(bid_sizes: np.ndarray, ask_sizes: np.ndarray) -> np.ndarray:
-    """
-    Fast OFI calculation using Numba
-    
-    Args:
-        bid_sizes: Array of bid sizes
-        ask_sizes: Array of ask sizes
-        
-    Returns:
-        Array of OFI values
-    """
+    """Numba-accelerated OFI calculation."""
     total_sizes = bid_sizes + ask_sizes
     ofi = np.zeros_like(bid_sizes, dtype=np.float64)
     
